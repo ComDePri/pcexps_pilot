@@ -1,0 +1,1740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Reaching Task: iPad Pencil-Only Timed Blocks and Chunks</title>
+
+  <!-- jsPsych v8 CDN setup -->
+  <script src="https://unpkg.com/jspsych@8.2.3"></script>
+  <link href="https://unpkg.com/jspsych@8.2.3/css/jspsych.css" rel="stylesheet" type="text/css" />
+
+  <style>
+    html, body {
+      margin: 0;
+      overflow: hidden;
+      touch-action: none;
+      overscroll-behavior: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      margin: 0;
+      background: #f5f5f5;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .instruction-card {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 28px 34px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      text-align: left;
+      line-height: 1.55;
+    }
+
+    .instruction-card h1,
+    .instruction-card h2 {
+      margin-top: 0;
+      text-align: center;
+    }
+
+    .block-preview {
+      display: flex;
+      gap: 36px;
+      align-items: center;
+      justify-content: center;
+      margin: 30px 0;
+    }
+
+    .target-preview-wrapper {
+      width: 240px;
+      min-height: 160px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #ddd;
+      border-radius: 16px;
+      background: #fafafa;
+      padding: 12px;
+    }
+
+    .target-preview-circle {
+      border-radius: 50%;
+      background: #2f6fed;
+      opacity: 0.85;
+      flex: 0 0 auto;
+    }
+
+    .condition-number {
+      font-size: 52px;
+      font-weight: 800;
+      margin: 0;
+      text-align: center;
+    }
+
+    .muted {
+      color: #555;
+    }
+
+    .pen-continue-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .pen-continue-button {
+      border: none;
+      border-radius: 12px;
+      padding: 16px 24px;
+      font-size: 20px;
+      font-weight: 750;
+      background: #2f6fed;
+      color: white;
+      cursor: pointer;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .pen-continue-warning {
+      min-height: 24px;
+      color: #b00020;
+      font-weight: 650;
+      text-align: center;
+    }
+
+    #reach-wrapper {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      transition: background-color 120ms linear;
+      box-sizing: border-box;
+      padding: 12px;
+    }
+
+    #block-timer-panel {
+      width: 900px;
+      max-width: calc(100vw - 32px);
+      background: white;
+      border: 1px solid #d7d7d7;
+      border-radius: 14px;
+      padding: 12px 16px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+      box-sizing: border-box;
+    }
+
+    .timer-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+      font-size: 15px;
+      color: #333;
+    }
+
+    .timer-row strong {
+      font-weight: 750;
+    }
+
+    .score-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+      font-size: 15px;
+      color: #333;
+    }
+
+    .score-row span {
+      white-space: nowrap;
+    }
+
+    .score-row strong {
+      font-weight: 800;
+    }
+
+    #last-score-label {
+      display: inline-block;
+      min-width: 44px;
+      text-align: right;
+      transition: transform 120ms linear;
+    }
+
+    #last-score-label.score-flash {
+      transform: scale(1.18);
+    }
+
+    .progress-track {
+      position: relative;
+      width: 100%;
+      height: 16px;
+      background: #eeeeee;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 0%;
+      height: 100%;
+      background: #2f6fed;
+      border-radius: 999px;
+      transition: width 80ms linear;
+      z-index: 1;
+    }
+
+    .progress-tick {
+      position: absolute;
+      top: 0;
+      width: 2px;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.48);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    #reach-canvas {
+      border: 1px solid #cfcfcf;
+      border-radius: 16px;
+      background: #ffffff;
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.08);
+      cursor: crosshair;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      max-width: calc(100vw - 32px);
+      max-height: calc(100vh - 170px);
+    }
+
+    #reach-message {
+      min-height: 24px;
+      font-size: 18px;
+      color: #333;
+      text-align: center;
+    }
+
+    .device-diagnostics {
+      margin-top: 18px;
+      padding: 14px 16px;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      background: #fafafa;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .device-lock-error {
+      max-width: 760px;
+      margin: 80px auto;
+      padding: 32px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      line-height: 1.5;
+    }
+
+    .device-lock-error code,
+    .device-diagnostics code {
+      background: #f0f0f0;
+      padding: 2px 5px;
+      border-radius: 5px;
+    }
+
+    .download-screen {
+      max-width: 760px;
+      margin: 80px auto;
+      padding: 32px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .download-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .download-buttons button {
+      border: none;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 15px;
+      cursor: pointer;
+      background: #2f6fed;
+      color: white;
+      font-weight: 650;
+    }
+
+    .download-buttons button.secondary {
+      background: #444;
+    }
+  </style>
+</head>
+<body></body>
+
+<script>
+/**************************************************************
+ * 1. EASY-TO-EDIT EXPERIMENT PARAMETERS
+ **************************************************************/
+const EXPERIMENT_CONFIG = {
+  // Participant ID can also be passed as URL parameter: experiment.html?participant=S01
+  participant_id:
+    new URLSearchParams(window.location.search).get("participant") ||
+    `anon_${Math.random().toString(36).slice(2, 10)}`,
+
+  // Canvas and geometry, in CSS pixels.
+  canvas_width: 900,
+  canvas_height: 700,
+  target_distance_px: 250,
+  start_radius_px: 22,
+
+  // iPad / Apple Pencil input.
+  // This version accepts pen input only. Finger and mouse input are rejected.
+  allowed_pointer_types: ["pen"],
+  require_primary_pointer: true,
+
+  // Optional single-device lock.
+  // First open the file on the target iPad and copy the detected values from the
+  // welcome screen diagnostics into expected_inner_width, expected_inner_height,
+  // and expected_device_pixel_ratio. Then set enabled: true.
+  device_lock: {
+    enabled: false,
+    expected_inner_width: null,
+    expected_inner_height: null,
+    expected_device_pixel_ratio: null,
+    required_orientation: "landscape",
+    require_touch_device: true,
+    tolerance_css_px: 2,
+    tolerance_device_pixel_ratio: 0.02,
+  },
+
+  // Blocks are defined by reward. Target width changes in fixed-duration chunks.
+  // The target is a regular single-circle target.
+  target_widths_px: [12, 24, 48],
+  reward_values: [1, 10],
+  directions_deg: [0, 45, 90, 135, 180, 225, 270, 315],
+
+  // Fixed duration of each reward block.
+  block_duration_seconds: 60,
+
+  // Fixed duration of each target-width chunk within a block.
+  // There is no trials-per-block and no trials-per-chunk parameter.
+  chunk_duration_seconds: 10,
+
+  // Number of repeated blocks for each reward magnitude.
+  blocks_per_reward: 2,
+
+  // Randomization and transition balancing.
+  randomize_block_order: true,
+  randomize_direction_order_within_block: true,
+  balance_target_width_transitions_across_blocks: true,
+
+  // Timing.
+  movement_timeout_ms: 4000,
+  feedback_duration_ms: 350,
+
+  // If true, when chunk or block time expires during an ongoing movement,
+  // the current trial ends immediately as timed-out/expired.
+  strict_chunk_timing: true,
+  strict_block_timing: true,
+
+  // Data.
+  save_mouse_path: true,
+  filename_prefix: "reaching_single_target_timed_block_and_chunks_ipad_pencil_score_locator_ring",
+
+  // Visuals.
+  background_color: "#ffffff",
+  start_color: "#111111",
+  target_color: "#2f6fed",
+  // Constant visual locator ring around every target.
+  // This makes small targets easy to locate without changing the scoring radius.
+  show_target_locator_ring: true,
+  target_locator_ring_radius_px: 70,
+  target_locator_ring_line_width_px: 3,
+  target_locator_ring_color: "rgba(0, 0, 0, 0.35)",
+  target_locator_ring_dash: [8, 6],
+  success_feedback_color: "#d8f5d1",
+  fail_feedback_color: "#ffd8d8",
+  timeout_feedback_color: "#fff0bf",
+  chunk_end_feedback_color: "#e8e8ff",
+  block_end_feedback_color: "#eeeeee",
+};
+
+/**************************************************************
+ * 2. BASIC HELPERS
+ **************************************************************/
+function shuffleArray(array) {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function distance(a, b) {
+  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+}
+
+function nowForFilename() {
+  return new Date().toISOString().replace(/[:.]/g, "-");
+}
+
+function makeTargetPosition(canvasWidth, canvasHeight, distancePx, angleDeg) {
+  const centerX = canvasWidth / 2;
+  const centerY = canvasHeight / 2;
+  const angleRad = (angleDeg * Math.PI) / 180;
+  return {
+    x: centerX + distancePx * Math.cos(angleRad),
+    y: centerY - distancePx * Math.sin(angleRad),
+  };
+}
+
+function computePathStats(samples, rtMs) {
+  if (!samples || samples.length < 2 || rtMs <= 0) {
+    return {
+      path_length_px: null,
+      mean_speed_px_per_s: null,
+      peak_speed_px_per_s: null,
+    };
+  }
+
+  let pathLength = 0;
+  let peakSpeed = 0;
+
+  for (let i = 1; i < samples.length; i++) {
+    const prev = samples[i - 1];
+    const curr = samples[i];
+    const segmentDistance = distance(prev, curr);
+    const dtMs = curr.t - prev.t;
+    pathLength += segmentDistance;
+
+    if (dtMs > 0) {
+      const speed = segmentDistance / (dtMs / 1000);
+      if (speed > peakSpeed) peakSpeed = speed;
+    }
+  }
+
+  return {
+    path_length_px: pathLength,
+    mean_speed_px_per_s: pathLength / (rtMs / 1000),
+    peak_speed_px_per_s: peakSpeed,
+  };
+}
+
+function checkGeometry(config) {
+  const maxTargetWidth = Math.max(...config.target_widths_px);
+  const targetMaxRadius = maxTargetWidth / 2;
+  const locatorMaxRadius = config.show_target_locator_ring
+    ? config.target_locator_ring_radius_px
+    : 0;
+  const maxRadius = Math.max(targetMaxRadius, locatorMaxRadius);
+  const safeHalfWidth = config.canvas_width / 2 - maxRadius;
+  const safeHalfHeight = config.canvas_height / 2 - maxRadius;
+
+  if (config.target_distance_px > Math.min(safeHalfWidth, safeHalfHeight)) {
+    console.warn(
+      "Some targets may be partly outside the canvas. Reduce target_distance_px, reduce target_widths_px, or increase canvas size."
+    );
+  }
+}
+
+function formatPoints(value) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
+function formatClock(ms) {
+  const safeMs = Math.max(0, ms);
+  const totalSeconds = Math.ceil(safeMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function formatElapsedClock(ms) {
+  const safeMs = Math.max(0, ms);
+  const totalSeconds = Math.floor(safeMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function countValues(values) {
+  const counts = {};
+  values.forEach((value) => {
+    counts[String(value)] = (counts[String(value)] || 0) + 1;
+  });
+  return counts;
+}
+
+function countTransitions(values) {
+  const counts = {};
+  for (let i = 1; i < values.length; i++) {
+    const label = `${values[i - 1]}->${values[i]}`;
+    counts[label] = (counts[label] || 0) + 1;
+  }
+  return counts;
+}
+
+function makeProgressTicksHtml(blockDurationSeconds, chunkDurationSeconds) {
+  const ticks = [];
+  for (let t = chunkDurationSeconds; t < blockDurationSeconds; t += chunkDurationSeconds) {
+    const leftPercent = (t / blockDurationSeconds) * 100;
+    ticks.push(`<div class="progress-tick" style="left: ${leftPercent}%;" title="Target size changes at ${t}s"></div>`);
+  }
+  return ticks.join("");
+}
+
+function getDeviceProfile() {
+  const orientationLabel = window.innerWidth >= window.innerHeight ? "landscape" : "portrait";
+  return {
+    inner_width: window.innerWidth,
+    inner_height: window.innerHeight,
+    outer_width: window.outerWidth,
+    outer_height: window.outerHeight,
+    device_pixel_ratio: window.devicePixelRatio,
+    max_touch_points: navigator.maxTouchPoints || 0,
+    orientation: orientationLabel,
+    user_agent: navigator.userAgent,
+  };
+}
+
+function validateDeviceLock(config) {
+  const lock = config.device_lock || { enabled: false };
+  const profile = getDeviceProfile();
+  const errors = [];
+
+  if (!lock.enabled) {
+    return { ok: true, profile, errors };
+  }
+
+  if (lock.require_touch_device && profile.max_touch_points < 1) {
+    errors.push("This does not appear to be a touch-capable iPad-like device.");
+  }
+
+  if (lock.required_orientation && profile.orientation !== lock.required_orientation) {
+    errors.push(`Required orientation is ${lock.required_orientation}, but current orientation is ${profile.orientation}.`);
+  }
+
+  if (Number.isFinite(lock.expected_inner_width)) {
+    const diff = Math.abs(profile.inner_width - lock.expected_inner_width);
+    if (diff > (lock.tolerance_css_px || 0)) {
+      errors.push(`innerWidth mismatch: expected ${lock.expected_inner_width}, observed ${profile.inner_width}.`);
+    }
+  }
+
+  if (Number.isFinite(lock.expected_inner_height)) {
+    const diff = Math.abs(profile.inner_height - lock.expected_inner_height);
+    if (diff > (lock.tolerance_css_px || 0)) {
+      errors.push(`innerHeight mismatch: expected ${lock.expected_inner_height}, observed ${profile.inner_height}.`);
+    }
+  }
+
+  if (Number.isFinite(lock.expected_device_pixel_ratio)) {
+    const diff = Math.abs(profile.device_pixel_ratio - lock.expected_device_pixel_ratio);
+    if (diff > (lock.tolerance_device_pixel_ratio || 0)) {
+      errors.push(`devicePixelRatio mismatch: expected ${lock.expected_device_pixel_ratio}, observed ${profile.device_pixel_ratio}.`);
+    }
+  }
+
+  return { ok: errors.length === 0, profile, errors };
+}
+
+function deviceProfileHtml() {
+  const profile = getDeviceProfile();
+  return `
+    <div class="device-diagnostics">
+      <strong>Device setup diagnostics</strong><br />
+      Detected viewport: <code>${profile.inner_width} × ${profile.inner_height}</code> CSS px<br />
+      Device pixel ratio: <code>${profile.device_pixel_ratio}</code><br />
+      Max touch points: <code>${profile.max_touch_points}</code><br />
+      Orientation: <code>${profile.orientation}</code><br />
+      Required input: <code>${EXPERIMENT_CONFIG.allowed_pointer_types.join(", ")}</code><br />
+      <span class="muted">To lock this experiment to this exact iPad, copy the viewport width, height, and device pixel ratio into <code>EXPERIMENT_CONFIG.device_lock</code>, then set <code>enabled: true</code>.</span>
+    </div>
+  `;
+}
+
+function renderDeviceLockError(validation) {
+  document.body.innerHTML = `
+    <div class="device-lock-error">
+      <h1>Device not allowed</h1>
+      <p>This experiment is configured for one specific iPad setup and Apple Pencil input.</p>
+      <p><strong>Detected viewport:</strong> <code>${validation.profile.inner_width} × ${validation.profile.inner_height}</code> CSS px</p>
+      <p><strong>Detected device pixel ratio:</strong> <code>${validation.profile.device_pixel_ratio}</code></p>
+      <p><strong>Detected orientation:</strong> <code>${validation.profile.orientation}</code></p>
+      <p><strong>Problems:</strong></p>
+      <ul>${validation.errors.map((err) => `<li>${err}</li>`).join("")}</ul>
+      <p class="muted">Rotate the iPad or check the values in <code>EXPERIMENT_CONFIG.device_lock</code>.</p>
+    </div>
+  `;
+}
+
+checkGeometry(EXPERIMENT_CONFIG);
+
+const GLOBAL_DATA_PROPERTIES = {
+  participant_id: EXPERIMENT_CONFIG.participant_id,
+  experiment_name: "reaching_single_target_timed_block_and_chunks_ipad_pencil",
+  config_json: JSON.stringify(EXPERIMENT_CONFIG),
+};
+
+const EXPERIMENT_START_TIME = performance.now();
+const REACHING_TRIAL_ROWS = [];
+let GLOBAL_REACHING_TRIAL_INDEX = 0;
+let GLOBAL_TOTAL_SCORE = 0;
+
+/**************************************************************
+ * 3. FIXED-TIME CHUNK SCHEDULING
+ **************************************************************/
+function getChunksPerBlock(config) {
+  return Math.ceil(config.block_duration_seconds / config.chunk_duration_seconds);
+}
+
+function makeEulerianCycle(values) {
+  // Creates a sequence that uses each ordered transition A -> B exactly once,
+  // excluding self-transitions A -> A.
+  const nodes = shuffleArray(values);
+  const adjacency = new Map();
+
+  nodes.forEach((from) => {
+    adjacency.set(
+      String(from),
+      shuffleArray(nodes.filter((to) => to !== from))
+    );
+  });
+
+  const stack = [nodes[0]];
+  const path = [];
+
+  while (stack.length > 0) {
+    const current = stack[stack.length - 1];
+    const edges = adjacency.get(String(current));
+
+    if (edges && edges.length > 0) {
+      stack.push(edges.pop());
+    } else {
+      path.push(stack.pop());
+    }
+  }
+
+  return path.reverse();
+}
+
+function makeFallbackWidthChunkSequence(config, chunksPerBlock) {
+  const sequence = [];
+  let previousWidth = null;
+
+  for (let chunkIndex = 0; chunkIndex < chunksPerBlock; chunkIndex++) {
+    let candidates = config.target_widths_px.filter((width) => width !== previousWidth);
+    if (candidates.length === 0) candidates = [...config.target_widths_px];
+    const nextWidth = shuffleArray(candidates)[0];
+    sequence.push(nextWidth);
+    previousWidth = nextWidth;
+  }
+
+  return sequence;
+}
+
+function makeTargetWidthChunkSchedulesForBlocks(config, nBlocks) {
+  const chunksPerBlock = getChunksPerBlock(config);
+  const transitionsPerBlock = Math.max(0, chunksPerBlock - 1);
+
+  if (config.target_widths_px.length <= 1) {
+    return Array.from({ length: nBlocks }, () =>
+      Array.from({ length: chunksPerBlock }, () => config.target_widths_px[0])
+    );
+  }
+
+  if (!config.balance_target_width_transitions_across_blocks) {
+    return Array.from({ length: nBlocks }, () =>
+      makeFallbackWidthChunkSequence(config, chunksPerBlock)
+    );
+  }
+
+  const nWidths = config.target_widths_px.length;
+  const transitionTypes = nWidths * (nWidths - 1);
+  const totalWithinBlockTransitions = nBlocks * transitionsPerBlock;
+  const eulerianCycle = makeEulerianCycle(config.target_widths_px);
+  const transitionsPerCycle = eulerianCycle.length - 1;
+
+  if (totalWithinBlockTransitions % transitionTypes !== 0) {
+    console.warn(
+      `Exact target-width transition counterbalancing is impossible with ${totalWithinBlockTransitions} within-block transitions and ${transitionTypes} ordered non-repeating transition types. Counts will be approximately balanced. To make it exact, choose block_duration_seconds, chunk_duration_seconds, and blocks_per_reward so total transitions is divisible by ${transitionTypes}.`
+    );
+  }
+
+  const longWidthSequence = [eulerianCycle[0]];
+  for (let transitionIndex = 0; transitionIndex < totalWithinBlockTransitions; transitionIndex++) {
+    longWidthSequence.push(
+      eulerianCycle[(transitionIndex % transitionsPerCycle) + 1]
+    );
+  }
+
+  const schedules = [];
+  let offset = 0;
+
+  for (let blockIndex = 0; blockIndex < nBlocks; blockIndex++) {
+    schedules.push(longWidthSequence.slice(offset, offset + chunksPerBlock));
+    offset += transitionsPerBlock;
+  }
+
+  return schedules;
+}
+
+function makeDirectionSampler(config) {
+  let bag = [];
+
+  function refillBag() {
+    bag = config.randomize_direction_order_within_block
+      ? shuffleArray(config.directions_deg)
+      : [...config.directions_deg];
+  }
+
+  return function getNextDirection() {
+    if (bag.length === 0) refillBag();
+    return bag.pop();
+  };
+}
+
+/**************************************************************
+ * 4. CSV / DOWNLOAD HELPERS
+ **************************************************************/
+function escapeCSVValue(value) {
+  if (value === null || value === undefined) return "";
+  const str = String(value);
+  if (/[",\n\r]/.test(str)) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function arrayToCSV(rows) {
+  if (!rows || rows.length === 0) return "";
+  const keys = [];
+  rows.forEach((row) => {
+    Object.keys(row).forEach((key) => {
+      if (!keys.includes(key)) keys.push(key);
+    });
+  });
+  const header = keys.map(escapeCSVValue).join(",");
+  const body = rows.map((row) => keys.map((key) => escapeCSVValue(row[key])).join(","));
+  return [header, ...body].join("\n");
+}
+
+function downloadTextFile(text, filename, mimeType) {
+  const blob = new Blob([text], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function makeDataFilename(format, subset) {
+  const part = EXPERIMENT_CONFIG.participant_id;
+  return `${EXPERIMENT_CONFIG.filename_prefix}_${part}_${subset}_${nowForFilename()}.${format}`;
+}
+
+function getInstructionAndSummaryRows() {
+  return jsPsych.data.get().values();
+}
+
+function getAllRows() {
+  return [...getInstructionAndSummaryRows(), ...REACHING_TRIAL_ROWS].sort((a, b) => {
+    const ta = Number.isFinite(a.time_elapsed) ? a.time_elapsed : Infinity;
+    const tb = Number.isFinite(b.time_elapsed) ? b.time_elapsed : Infinity;
+    return ta - tb;
+  });
+}
+
+window.downloadReachData = function (format, subset = "reaching_trials_only") {
+  const rows = subset === "reaching_trials_only" ? REACHING_TRIAL_ROWS : getAllRows();
+
+  if (format === "csv") {
+    downloadTextFile(
+      arrayToCSV(rows),
+      makeDataFilename("csv", subset),
+      "text/csv;charset=utf-8"
+    );
+  } else if (format === "json") {
+    downloadTextFile(
+      JSON.stringify(rows, null, 2),
+      makeDataFilename("json", subset),
+      "application/json;charset=utf-8"
+    );
+  } else {
+    throw new Error(`Unsupported format: ${format}`);
+  }
+};
+
+/**************************************************************
+ * 5. INITIALIZE JSPSYCH
+ **************************************************************/
+const jsPsych = initJsPsych({
+  show_progress_bar: true,
+  auto_update_progress_bar: true,
+  on_finish: function () {
+    showDownloadScreen();
+  },
+});
+
+jsPsych.data.addProperties(GLOBAL_DATA_PROPERTIES);
+
+const ParameterType =
+  (window.jsPsychModule && window.jsPsychModule.ParameterType) ||
+  jsPsych.ParameterType ||
+  {
+    BOOL: "BOOL",
+    STRING: "STRING",
+    INT: "INT",
+    FLOAT: "FLOAT",
+    OBJECT: "OBJECT",
+  };
+
+/**************************************************************
+ * 6. CUSTOM TIMED BLOCK + TIMED CHUNK PLUGIN
+ **************************************************************/
+const timedReachBlockInfo = {
+  name: "timed-reach-block-timed-chunks-single-target",
+  version: "1.0.0",
+  parameters: {
+    canvas_width: { type: ParameterType.INT, default: 900 },
+    canvas_height: { type: ParameterType.INT, default: 700 },
+    block_duration_seconds: { type: ParameterType.FLOAT, default: 60 },
+    chunk_duration_seconds: { type: ParameterType.FLOAT, default: 10 },
+    target_distance_px: { type: ParameterType.FLOAT, default: 250 },
+    target_width_chunk_sequence: { type: ParameterType.OBJECT, default: [30, 60, 90] },
+    directions_deg: { type: ParameterType.OBJECT, default: [0, 45, 90, 135, 180, 225, 270, 315] },
+    randomize_direction_order_within_block: { type: ParameterType.BOOL, default: true },
+    allowed_pointer_types: { type: ParameterType.OBJECT, default: ["pen"] },
+    require_primary_pointer: { type: ParameterType.BOOL, default: true },
+    reward_points: { type: ParameterType.FLOAT, default: 1 },
+    block_index: { type: ParameterType.INT, default: 0 },
+    reward_condition_index: { type: ParameterType.INT, default: 0 },
+    reward_repetition: { type: ParameterType.INT, default: 1 },
+    start_radius_px: { type: ParameterType.FLOAT, default: 22 },
+    movement_timeout_ms: { type: ParameterType.INT, default: 4000 },
+    feedback_duration_ms: { type: ParameterType.INT, default: 350 },
+    strict_chunk_timing: { type: ParameterType.BOOL, default: true },
+    strict_block_timing: { type: ParameterType.BOOL, default: true },
+    save_mouse_path: { type: ParameterType.BOOL, default: true },
+    background_color: { type: ParameterType.STRING, default: "#ffffff" },
+    start_color: { type: ParameterType.STRING, default: "#111111" },
+    target_color: { type: ParameterType.STRING, default: "#2f6fed" },
+    show_target_locator_ring: { type: ParameterType.BOOL, default: true },
+    target_locator_ring_radius_px: { type: ParameterType.FLOAT, default: 70 },
+    target_locator_ring_line_width_px: { type: ParameterType.FLOAT, default: 3 },
+    target_locator_ring_color: { type: ParameterType.STRING, default: "rgba(0, 0, 0, 0.35)" },
+    target_locator_ring_dash: { type: ParameterType.OBJECT, default: [8, 6] },
+    success_feedback_color: { type: ParameterType.STRING, default: "#d8f5d1" },
+    fail_feedback_color: { type: ParameterType.STRING, default: "#ffd8d8" },
+    timeout_feedback_color: { type: ParameterType.STRING, default: "#fff0bf" },
+    chunk_end_feedback_color: { type: ParameterType.STRING, default: "#e8e8ff" },
+    block_end_feedback_color: { type: ParameterType.STRING, default: "#eeeeee" },
+  },
+  data: {
+    task: { type: ParameterType.STRING },
+    block_index: { type: ParameterType.INT },
+    n_reaching_trials: { type: ParameterType.INT },
+  },
+};
+
+class JsPsychTimedReachBlockTimedChunksSingleTarget {
+  constructor(jsPsychInstance) {
+    this.jsPsych = jsPsychInstance;
+  }
+
+  trial(display_element, block) {
+    const blockDurationMs = block.block_duration_seconds * 1000;
+    const chunkDurationMs = block.chunk_duration_seconds * 1000;
+    const blockStartTime = performance.now();
+    const blockEndTime = blockStartTime + blockDurationMs;
+    const center = { x: block.canvas_width / 2, y: block.canvas_height / 2 };
+    const getNextDirection = makeDirectionSampler(block);
+
+    let phase = "waiting_for_start";
+    let blockFinished = false;
+    let animationFrameId = null;
+    let movementTimeoutHandle = null;
+    let feedbackTimeoutHandle = null;
+    let blockEndTimeoutHandle = null;
+
+    let trialInBlock = 0;
+    let blockPoints = 0;
+    let blockCorrectTrials = 0;
+    let blockTimedOutTrials = 0;
+    let chunkExpiredTrials = 0;
+    let blockExpiredTrials = 0;
+    let currentTrial = null;
+
+    const trialsStartedPerChunk = Array.from({ length: block.target_width_chunk_sequence.length }, () => 0);
+    const trialsCompletedPerChunk = Array.from({ length: block.target_width_chunk_sequence.length }, () => 0);
+
+    display_element.innerHTML = `
+      <div id="reach-wrapper" style="background-color: ${block.background_color};">
+        <div id="block-timer-panel">
+          <div class="timer-row">
+            <span><strong>Block ${block.block_index}</strong> | Reward: <strong>${block.reward_points}</strong> points</span>
+            <span>Elapsed: <strong id="elapsed-time-label">0:00</strong> &nbsp; Remaining: <strong id="remaining-time-label">${formatClock(blockDurationMs)}</strong></span>
+          </div>
+          <div class="score-row" aria-label="Score panel">
+            <span>Total score: <strong id="total-score-label">${formatPoints(GLOBAL_TOTAL_SCORE)}</strong></span>
+            <span>Current block: <strong id="block-score-label">0</strong></span>
+            <span>Last: <strong id="last-score-label">—</strong></span>
+          </div>
+          <div class="progress-track" aria-label="Block progress bar with target-size transition ticks">
+            <div id="block-progress-fill" class="progress-fill"></div>
+            ${makeProgressTicksHtml(block.block_duration_seconds, block.chunk_duration_seconds)}
+          </div>
+        </div>
+        <canvas id="reach-canvas" width="${block.canvas_width}" height="${block.canvas_height}"></canvas>
+        <div id="reach-message">Tap the central cross with the Apple Pencil to start the first trial.</div>
+      </div>
+    `;
+
+    const wrapper = display_element.querySelector("#reach-wrapper");
+    const canvas = display_element.querySelector("#reach-canvas");
+    const message = display_element.querySelector("#reach-message");
+    const progressFill = display_element.querySelector("#block-progress-fill");
+    const elapsedLabel = display_element.querySelector("#elapsed-time-label");
+    const remainingLabel = display_element.querySelector("#remaining-time-label");
+    const totalScoreLabel = display_element.querySelector("#total-score-label");
+    const blockScoreLabel = display_element.querySelector("#block-score-label");
+    const lastScoreLabel = display_element.querySelector("#last-score-label");
+    const ctx = canvas.getContext("2d");
+    const plugin = this;
+
+    function getElapsedMs() {
+      return performance.now() - blockStartTime;
+    }
+
+    function getRemainingMs() {
+      return Math.max(0, blockEndTime - performance.now());
+    }
+
+    function updateScoreDisplay(lastPoints = null) {
+      totalScoreLabel.textContent = formatPoints(GLOBAL_TOTAL_SCORE);
+      blockScoreLabel.textContent = formatPoints(blockPoints);
+
+      if (lastPoints !== null) {
+        lastScoreLabel.textContent = `+${formatPoints(lastPoints)}`;
+        lastScoreLabel.classList.remove("score-flash");
+        // Force reflow so repeated updates retrigger the small scale animation.
+        void lastScoreLabel.offsetWidth;
+        lastScoreLabel.classList.add("score-flash");
+      }
+    }
+
+    function getCurrentChunkIndex() {
+      const elapsed = Math.max(0, performance.now() - blockStartTime);
+      const rawIndex = Math.floor(elapsed / chunkDurationMs);
+      return Math.min(rawIndex, block.target_width_chunk_sequence.length - 1);
+    }
+
+    function getChunkTiming(chunkIndex) {
+      const chunkStartTime = blockStartTime + chunkIndex * chunkDurationMs;
+      const chunkEndTime = Math.min(blockEndTime, chunkStartTime + chunkDurationMs);
+      return { chunkStartTime, chunkEndTime };
+    }
+
+    function updateTimerDisplay() {
+      const elapsed = Math.min(getElapsedMs(), blockDurationMs);
+      const remaining = Math.max(0, blockDurationMs - elapsed);
+      const progress = Math.min(1, elapsed / blockDurationMs);
+
+      progressFill.style.width = `${progress * 100}%`;
+      elapsedLabel.textContent = formatElapsedClock(elapsed);
+      remainingLabel.textContent = formatClock(remaining);
+
+      if (!blockFinished) {
+        animationFrameId = requestAnimationFrame(updateTimerDisplay);
+      }
+    }
+
+    function getCanvasPosition(event) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+        y: ((event.clientY - rect.top) / rect.height) * canvas.height,
+        client_x: event.clientX,
+        client_y: event.clientY,
+        pointer_id: event.pointerId,
+        pointer_type: event.pointerType,
+        is_primary: event.isPrimary,
+        pressure: event.pressure,
+        tangential_pressure: event.tangentialPressure,
+        tilt_x: event.tiltX,
+        tilt_y: event.tiltY,
+        twist: event.twist,
+        pointer_width: event.width,
+        pointer_height: event.height,
+      };
+    }
+
+    function isAllowedPointerEvent(event) {
+      event.preventDefault();
+
+      if (block.require_primary_pointer && event.isPrimary === false) {
+        message.textContent = "Please use only one Apple Pencil input at a time.";
+        return false;
+      }
+
+      if (!block.allowed_pointer_types.includes(event.pointerType)) {
+        message.textContent = "Please use the Apple Pencil, not a finger or mouse.";
+        return false;
+      }
+
+      return true;
+    }
+
+    function drawFixation() {
+      ctx.strokeStyle = block.start_color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(center.x - 12, center.y);
+      ctx.lineTo(center.x + 12, center.y);
+      ctx.moveTo(center.x, center.y - 12);
+      ctx.lineTo(center.x, center.y + 12);
+      ctx.stroke();
+
+      ctx.strokeStyle = block.start_color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(center.x, center.y, block.start_radius_px, 0, 2 * Math.PI);
+      ctx.stroke();
+    }
+
+    function drawTarget() {
+      if (!currentTrial) return;
+
+      if (block.show_target_locator_ring) {
+        ctx.save();
+        ctx.strokeStyle = block.target_locator_ring_color;
+        ctx.lineWidth = block.target_locator_ring_line_width_px;
+        if (Array.isArray(block.target_locator_ring_dash)) {
+          ctx.setLineDash(block.target_locator_ring_dash);
+        }
+        ctx.beginPath();
+        ctx.arc(
+          currentTrial.target.x,
+          currentTrial.target.y,
+          block.target_locator_ring_radius_px,
+          0,
+          2 * Math.PI
+        );
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      ctx.fillStyle = block.target_color;
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.arc(
+        currentTrial.target.x,
+        currentTrial.target.y,
+        currentTrial.target_radius_px,
+        0,
+        2 * Math.PI
+      );
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    function drawWaitingScreen() {
+      ctx.clearRect(0, 0, block.canvas_width, block.canvas_height);
+      ctx.fillStyle = block.background_color;
+      ctx.fillRect(0, 0, block.canvas_width, block.canvas_height);
+      drawFixation();
+    }
+
+    function drawMovementScreen() {
+      ctx.clearRect(0, 0, block.canvas_width, block.canvas_height);
+      ctx.fillStyle = block.background_color;
+      ctx.fillRect(0, 0, block.canvas_width, block.canvas_height);
+      drawFixation();
+      drawTarget();
+    }
+
+    function addSample(point) {
+      if (!currentTrial || currentTrial.movement_start_time === null) return;
+      currentTrial.samples.push({
+        t: performance.now() - currentTrial.movement_start_time,
+        x: point.x,
+        y: point.y,
+        pointer_type: point.pointer_type,
+        pressure: point.pressure,
+        tilt_x: point.tilt_x,
+        tilt_y: point.tilt_y,
+        twist: point.twist,
+      });
+    }
+
+    function showWaitingForStart() {
+      if (blockFinished) return;
+      if (performance.now() >= blockEndTime) {
+        finishBlock();
+        return;
+      }
+      phase = "waiting_for_start";
+      currentTrial = null;
+      wrapper.style.backgroundColor = block.background_color;
+      message.textContent = "Tap the central cross with the Apple Pencil to start the trial.";
+      drawWaitingScreen();
+    }
+
+    function startMovement(startPoint) {
+      if (performance.now() >= blockEndTime) {
+        finishBlock();
+        return;
+      }
+
+      const chunkIndex = getCurrentChunkIndex();
+      const { chunkStartTime, chunkEndTime } = getChunkTiming(chunkIndex);
+
+      if (performance.now() >= chunkEndTime) {
+        showWaitingForStart();
+        return;
+      }
+
+      const targetWidth = block.target_width_chunk_sequence[chunkIndex];
+      const previousTargetWidth = chunkIndex > 0 ? block.target_width_chunk_sequence[chunkIndex - 1] : null;
+      const transitionLabel = previousTargetWidth === null ? null : `${previousTargetWidth}->${targetWidth}`;
+      const angleDeg = getNextDirection();
+      const target = makeTargetPosition(
+        block.canvas_width,
+        block.canvas_height,
+        block.target_distance_px,
+        angleDeg
+      );
+
+      trialInBlock += 1;
+      GLOBAL_REACHING_TRIAL_INDEX += 1;
+      trialsStartedPerChunk[chunkIndex] += 1;
+
+      currentTrial = {
+        trial_in_block: trialInBlock,
+        global_reach_trial_index: GLOBAL_REACHING_TRIAL_INDEX,
+        chunk_index: chunkIndex + 1,
+        chunk_start_ms_from_block_start: chunkIndex * chunkDurationMs,
+        chunk_end_ms_from_block_start: Math.min(blockDurationMs, (chunkIndex + 1) * chunkDurationMs),
+        chunk_start_time: chunkStartTime,
+        chunk_end_time: chunkEndTime,
+        target_width_px: targetWidth,
+        target_radius_px: targetWidth / 2,
+        previous_target_width_chunk_px: previousTargetWidth,
+        target_width_transition_label: transitionLabel,
+        target_angle_deg: angleDeg,
+        target: target,
+        trial_created_time: performance.now(),
+        movement_start_time: performance.now(),
+        start_click: startPoint,
+        samples: [{
+          t: 0,
+          x: center.x,
+          y: center.y,
+          pointer_type: startPoint.pointer_type,
+          pressure: startPoint.pressure,
+          tilt_x: startPoint.tilt_x,
+          tilt_y: startPoint.tilt_y,
+          twist: startPoint.twist,
+        }],
+      };
+
+      phase = "movement";
+      wrapper.style.backgroundColor = block.background_color;
+      message.textContent = "Tap the target with the Apple Pencil as quickly and accurately as possible.";
+      drawMovementScreen();
+
+      const timeoutCandidates = [block.movement_timeout_ms];
+      if (block.strict_block_timing) {
+        timeoutCandidates.push(Math.max(1, blockEndTime - performance.now()));
+      }
+      if (block.strict_chunk_timing) {
+        timeoutCandidates.push(Math.max(1, chunkEndTime - performance.now()));
+      }
+      const timeoutDelay = Math.min(...timeoutCandidates);
+
+      movementTimeoutHandle = setTimeout(() => {
+        if (!currentTrial || phase !== "movement") return;
+        const now = performance.now();
+        const endedByBlockTime = block.strict_block_timing && now >= blockEndTime - 2;
+        const endedByChunkTime = !endedByBlockTime && block.strict_chunk_timing && now >= currentTrial.chunk_end_time - 2;
+        finishCurrentTrial({
+          clickPoint: null,
+          timedOut: true,
+          endedByChunkTime,
+          endedByBlockTime,
+        });
+      }, timeoutDelay);
+    }
+
+    function finishCurrentTrial({ clickPoint = null, timedOut = false, endedByChunkTime = false, endedByBlockTime = false } = {}) {
+      if (!currentTrial || blockFinished) return;
+
+      if (movementTimeoutHandle !== null) {
+        clearTimeout(movementTimeoutHandle);
+        movementTimeoutHandle = null;
+      }
+
+      const endTime = performance.now();
+      const movementStart = currentTrial.movement_start_time;
+      const rtMs = movementStart === null ? null : endTime - movementStart;
+      const startLatencyMs = movementStart === null ? null : movementStart - currentTrial.trial_created_time;
+
+      let endpointError = null;
+      let correct = false;
+      let clickX = null;
+      let clickY = null;
+      let clickClientX = null;
+      let clickClientY = null;
+      let clickDistanceFromStart = null;
+
+      if (clickPoint !== null) {
+        addSample(clickPoint);
+        clickX = clickPoint.x;
+        clickY = clickPoint.y;
+        clickClientX = clickPoint.client_x;
+        clickClientY = clickPoint.client_y;
+        endpointError = distance(clickPoint, currentTrial.target);
+        clickDistanceFromStart = distance(clickPoint, center);
+        correct = endpointError <= currentTrial.target_radius_px;
+      }
+
+      const pathStats = computePathStats(currentTrial.samples, rtMs || 0);
+      const pointsEarned = correct ? block.reward_points : 0;
+      const blockScoreBeforeTrial = blockPoints;
+      const totalScoreBeforeTrial = GLOBAL_TOTAL_SCORE;
+
+      blockPoints += pointsEarned;
+      GLOBAL_TOTAL_SCORE += pointsEarned;
+      updateScoreDisplay(pointsEarned);
+      if (correct) blockCorrectTrials += 1;
+      if (timedOut) blockTimedOutTrials += 1;
+      if (endedByChunkTime) chunkExpiredTrials += 1;
+      if (endedByBlockTime) blockExpiredTrials += 1;
+      trialsCompletedPerChunk[currentTrial.chunk_index - 1] += 1;
+
+      const trialData = {
+        ...GLOBAL_DATA_PROPERTIES,
+        trial_type: "manual_reaching_trial",
+        task: "reaching",
+        target_type: "single_circle",
+        time_elapsed: Math.round(performance.now() - EXPERIMENT_START_TIME),
+        block_index: block.block_index,
+        reward_condition_index: block.reward_condition_index,
+        reward_repetition: block.reward_repetition,
+        trial_in_block: currentTrial.trial_in_block,
+        global_reach_trial_index: currentTrial.global_reach_trial_index,
+
+        block_duration_seconds: block.block_duration_seconds,
+        chunk_duration_seconds: block.chunk_duration_seconds,
+        chunk_index: currentTrial.chunk_index,
+        chunk_start_ms_from_block_start: currentTrial.chunk_start_ms_from_block_start,
+        chunk_end_ms_from_block_start: currentTrial.chunk_end_ms_from_block_start,
+        block_elapsed_ms_at_trial_start: currentTrial.trial_created_time - blockStartTime,
+        block_elapsed_ms_at_trial_end: endTime - blockStartTime,
+        block_time_remaining_ms_at_trial_start: Math.max(0, blockEndTime - currentTrial.trial_created_time),
+        block_time_remaining_ms_at_trial_end: Math.max(0, blockEndTime - endTime),
+        chunk_time_remaining_ms_at_trial_start: Math.max(0, currentTrial.chunk_end_time - currentTrial.trial_created_time),
+        chunk_time_remaining_ms_at_trial_end: Math.max(0, currentTrial.chunk_end_time - endTime),
+        ended_by_chunk_time: endedByChunkTime,
+        ended_by_block_time: endedByBlockTime,
+
+        reward_points: block.reward_points,
+        target_width_px: currentTrial.target_width_px,
+        target_radius_px: currentTrial.target_radius_px,
+        show_target_locator_ring: block.show_target_locator_ring,
+        target_locator_ring_radius_px: block.target_locator_ring_radius_px,
+        target_locator_ring_line_width_px: block.target_locator_ring_line_width_px,
+        target_locator_ring_color: block.target_locator_ring_color,
+        target_locator_ring_dash_json: JSON.stringify(block.target_locator_ring_dash),
+        previous_target_width_chunk_px: currentTrial.previous_target_width_chunk_px,
+        target_width_transition_label: currentTrial.target_width_transition_label,
+        target_distance_px: block.target_distance_px,
+        target_angle_deg: currentTrial.target_angle_deg,
+        target_center_x: currentTrial.target.x,
+        target_center_y: currentTrial.target.y,
+        canvas_width: block.canvas_width,
+        canvas_height: block.canvas_height,
+        start_x: center.x,
+        start_y: center.y,
+        start_radius_px: block.start_radius_px,
+
+        start_click_x: currentTrial.start_click ? currentTrial.start_click.x : null,
+        start_click_y: currentTrial.start_click ? currentTrial.start_click.y : null,
+        start_pointer_type: currentTrial.start_click ? currentTrial.start_click.pointer_type : null,
+        start_pointer_id: currentTrial.start_click ? currentTrial.start_click.pointer_id : null,
+        start_pressure: currentTrial.start_click ? currentTrial.start_click.pressure : null,
+        start_tilt_x: currentTrial.start_click ? currentTrial.start_click.tilt_x : null,
+        start_tilt_y: currentTrial.start_click ? currentTrial.start_click.tilt_y : null,
+        start_twist: currentTrial.start_click ? currentTrial.start_click.twist : null,
+        click_x: clickX,
+        click_y: clickY,
+        click_client_x: clickClientX,
+        click_client_y: clickClientY,
+        click_pointer_type: clickPoint ? clickPoint.pointer_type : null,
+        click_pointer_id: clickPoint ? clickPoint.pointer_id : null,
+        click_pressure: clickPoint ? clickPoint.pressure : null,
+        click_tilt_x: clickPoint ? clickPoint.tilt_x : null,
+        click_tilt_y: clickPoint ? clickPoint.tilt_y : null,
+        click_twist: clickPoint ? clickPoint.twist : null,
+
+        correct: correct,
+        timed_out: timedOut,
+        points_earned: pointsEarned,
+        block_score_before_trial: blockScoreBeforeTrial,
+        block_score_after_trial: blockPoints,
+        total_score_before_trial: totalScoreBeforeTrial,
+        total_score_after_trial: GLOBAL_TOTAL_SCORE,
+        endpoint_error_px: endpointError,
+        click_distance_from_start_px: clickDistanceFromStart,
+        rt_ms: rtMs,
+        start_latency_ms: startLatencyMs,
+        total_trial_duration_ms: endTime - currentTrial.trial_created_time,
+        movement_timeout_ms: block.movement_timeout_ms,
+
+        path_length_px: pathStats.path_length_px,
+        mean_speed_px_per_s: pathStats.mean_speed_px_per_s,
+        peak_speed_px_per_s: pathStats.peak_speed_px_per_s,
+        n_pointer_samples: currentTrial.samples.length,
+        pointer_path_json: block.save_mouse_path ? JSON.stringify(currentTrial.samples) : null,
+      };
+
+      REACHING_TRIAL_ROWS.push(trialData);
+
+      let feedbackColor = block.fail_feedback_color;
+      let feedbackText = "Fail";
+      if (endedByBlockTime) {
+        feedbackColor = block.block_end_feedback_color;
+        feedbackText = "Block ended";
+      } else if (endedByChunkTime) {
+        feedbackColor = block.chunk_end_feedback_color;
+        feedbackText = "Target size changed";
+      } else if (timedOut) {
+        feedbackColor = block.timeout_feedback_color;
+        feedbackText = "Too slow";
+      } else if (correct) {
+        feedbackColor = block.success_feedback_color;
+        feedbackText = `Success +${formatPoints(pointsEarned)}`;
+      }
+
+      phase = "feedback";
+      wrapper.style.backgroundColor = feedbackColor;
+      ctx.clearRect(0, 0, block.canvas_width, block.canvas_height);
+      ctx.fillStyle = feedbackColor;
+      ctx.fillRect(0, 0, block.canvas_width, block.canvas_height);
+      ctx.fillStyle = "#222";
+      ctx.font = "bold 34px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(feedbackText, center.x, center.y);
+      message.textContent = "";
+      currentTrial = null;
+
+      feedbackTimeoutHandle = setTimeout(() => {
+        feedbackTimeoutHandle = null;
+        if (blockFinished) return;
+
+        if (performance.now() >= blockEndTime || endedByBlockTime) {
+          finishBlock();
+        } else {
+          showWaitingForStart();
+        }
+      }, block.feedback_duration_ms);
+    }
+
+    function cleanup() {
+      canvas.removeEventListener("pointerdown", handlePointerDown);
+      canvas.removeEventListener("pointermove", handlePointerMove);
+      canvas.removeEventListener("pointerup", handlePointerUpOrCancel);
+      canvas.removeEventListener("pointercancel", handlePointerUpOrCancel);
+      if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
+      if (movementTimeoutHandle !== null) clearTimeout(movementTimeoutHandle);
+      if (feedbackTimeoutHandle !== null) clearTimeout(feedbackTimeoutHandle);
+      if (blockEndTimeoutHandle !== null) clearTimeout(blockEndTimeoutHandle);
+    }
+
+    function finishBlock() {
+      if (blockFinished) return;
+      blockFinished = true;
+      cleanup();
+
+      const blockEndActual = performance.now();
+      const blockSummary = {
+        task: "block_summary",
+        target_type: "single_circle",
+        block_index: block.block_index,
+        reward_condition_index: block.reward_condition_index,
+        reward_repetition: block.reward_repetition,
+        reward_points: block.reward_points,
+        block_duration_seconds: block.block_duration_seconds,
+        chunk_duration_seconds: block.chunk_duration_seconds,
+        block_actual_duration_ms: blockEndActual - blockStartTime,
+        n_reaching_trials: trialInBlock,
+        n_correct_trials: blockCorrectTrials,
+        n_timed_out_trials: blockTimedOutTrials,
+        n_chunk_expired_trials: chunkExpiredTrials,
+        n_block_expired_trials: blockExpiredTrials,
+        block_points_earned: blockPoints,
+        total_score_after_block: GLOBAL_TOTAL_SCORE,
+        show_target_locator_ring: block.show_target_locator_ring,
+        target_locator_ring_radius_px: block.target_locator_ring_radius_px,
+        target_locator_ring_line_width_px: block.target_locator_ring_line_width_px,
+        target_locator_ring_color: block.target_locator_ring_color,
+        target_locator_ring_dash_json: JSON.stringify(block.target_locator_ring_dash),
+
+        block_accuracy: trialInBlock > 0 ? blockCorrectTrials / trialInBlock : null,
+        target_width_chunk_sequence_json: JSON.stringify(block.target_width_chunk_sequence),
+        target_width_chunk_counts_json: JSON.stringify(countValues(block.target_width_chunk_sequence)),
+        target_width_transition_counts_json: JSON.stringify(countTransitions(block.target_width_chunk_sequence)),
+        trials_started_per_chunk_json: JSON.stringify(trialsStartedPerChunk),
+        trials_completed_per_chunk_json: JSON.stringify(trialsCompletedPerChunk),
+      };
+
+      plugin.jsPsych.finishTrial(blockSummary);
+    }
+
+    function handlePointerDown(event) {
+      if (blockFinished) return;
+      if (!isAllowedPointerEvent(event)) return;
+
+      if (performance.now() >= blockEndTime && phase !== "movement") {
+        finishBlock();
+        return;
+      }
+
+      const point = getCanvasPosition(event);
+
+      if (phase === "waiting_for_start") {
+        const isInsideStart = distance(point, center) <= block.start_radius_px;
+        if (isInsideStart) {
+          try {
+            canvas.setPointerCapture(event.pointerId);
+          } catch (err) {
+            // Pointer capture can fail in some browser edge cases; the task still works.
+          }
+          startMovement(point);
+        } else {
+          message.textContent = "Please tap inside the central start circle with the Apple Pencil.";
+        }
+        return;
+      }
+
+      if (phase === "movement") {
+        finishCurrentTrial({
+          clickPoint: point,
+          timedOut: false,
+          endedByChunkTime: false,
+          endedByBlockTime: false,
+        });
+      }
+    }
+
+    function handlePointerMove(event) {
+      if (phase !== "movement" || blockFinished) return;
+      if (!block.allowed_pointer_types.includes(event.pointerType)) return;
+      event.preventDefault();
+      addSample(getCanvasPosition(event));
+    }
+
+    function handlePointerUpOrCancel(event) {
+      if (!block.allowed_pointer_types.includes(event.pointerType)) return;
+      event.preventDefault();
+      try {
+        if (canvas.hasPointerCapture(event.pointerId)) {
+          canvas.releasePointerCapture(event.pointerId);
+        }
+      } catch (err) {
+        // Ignore release errors.
+      }
+    }
+
+    canvas.addEventListener("pointerdown", handlePointerDown, { passive: false });
+    canvas.addEventListener("pointermove", handlePointerMove, { passive: false });
+    canvas.addEventListener("pointerup", handlePointerUpOrCancel, { passive: false });
+    canvas.addEventListener("pointercancel", handlePointerUpOrCancel, { passive: false });
+
+    updateTimerDisplay();
+    showWaitingForStart();
+    blockEndTimeoutHandle = setTimeout(() => {
+      if (blockFinished) return;
+      if (phase === "movement" && block.strict_block_timing) {
+        finishCurrentTrial({
+          clickPoint: null,
+          timedOut: true,
+          endedByChunkTime: false,
+          endedByBlockTime: true,
+        });
+      } else {
+        finishBlock();
+      }
+    }, blockDurationMs);
+  }
+}
+
+JsPsychTimedReachBlockTimedChunksSingleTarget.info = timedReachBlockInfo;
+
+
+/**************************************************************
+ * 7. CUSTOM APPLE-PENCIL CONTINUE SCREEN PLUGIN
+ **************************************************************/
+const penContinueScreenInfo = {
+  name: "pen-continue-screen",
+  version: "1.0.0",
+  parameters: {
+    stimulus: { type: ParameterType.HTML_STRING, default: "" },
+    button_text: { type: ParameterType.STRING, default: "Continue" },
+    allowed_pointer_types: { type: ParameterType.OBJECT, default: ["pen"] },
+    data: { type: ParameterType.OBJECT, default: {} },
+  },
+};
+
+class JsPsychPenContinueScreen {
+  constructor(jsPsychInstance) {
+    this.jsPsych = jsPsychInstance;
+  }
+
+  trial(display_element, trial) {
+    display_element.innerHTML = `
+      ${trial.stimulus}
+      <div class="pen-continue-wrapper">
+        <button id="pen-continue-button" class="pen-continue-button">${trial.button_text}</button>
+        <div id="pen-continue-warning" class="pen-continue-warning"></div>
+      </div>
+    `;
+
+    const button = display_element.querySelector("#pen-continue-button");
+    const warning = display_element.querySelector("#pen-continue-warning");
+
+    const finish = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (!trial.allowed_pointer_types.includes(event.pointerType)) {
+        warning.textContent = "Please use the Apple Pencil to continue.";
+        return;
+      }
+
+      button.removeEventListener("pointerdown", finish);
+      this.jsPsych.finishTrial({
+        ...(trial.data || {}),
+        continue_pointer_type: event.pointerType,
+        continue_pressure: event.pressure ?? null,
+        continue_pointer_id: event.pointerId ?? null,
+      });
+    };
+
+    button.addEventListener("pointerdown", finish, { passive: false });
+  }
+}
+
+JsPsychPenContinueScreen.info = penContinueScreenInfo;
+
+/**************************************************************
+ * 8. TIMELINE CONSTRUCTION
+ **************************************************************/
+function makeWelcomeTrial() {
+  return {
+    type: JsPsychPenContinueScreen,
+    allowed_pointer_types: EXPERIMENT_CONFIG.allowed_pointer_types,
+    button_text: "Start with Apple Pencil",
+    stimulus: `
+      <div class="instruction-card">
+        <h1>Reaching task</h1>
+        <p>Use the <strong>Apple Pencil only</strong>. Finger and mouse input are rejected.</p>
+        <p>In each trial, tap the central cross with the Pencil to start. A blue target will then appear at a fixed distance in one of several directions.</p>
+        <p>Your task is to tap the target with the Pencil as <strong>quickly</strong> and <strong>accurately</strong> as possible.</p>
+        <p>Blocks are defined by reward magnitude. Each reward block lasts a fixed amount of time.</p>
+        <p>Within each block, the target size changes every <strong>${EXPERIMENT_CONFIG.chunk_duration_seconds} seconds</strong>. The small ticks on the progress bar indicate these transition times.</p>
+        ${deviceProfileHtml()}
+        <p class="muted" style="text-align:center;">Tap the button below with the Apple Pencil to begin.</p>
+      </div>
+    `,
+    data: { screen_type: "welcome" },
+  };
+}
+
+function makeBlockIntroTrial(condition, blockIndex, totalBlocks, widthSequence) {
+  return {
+    type: JsPsychPenContinueScreen,
+    allowed_pointer_types: EXPERIMENT_CONFIG.allowed_pointer_types,
+    button_text: "Start block with Apple Pencil",
+    stimulus: `
+      <div class="instruction-card">
+        <h2>Block ${blockIndex} of ${totalBlocks}</h2>
+        <p class="muted" style="text-align:center;">Reward repetition ${condition.reward_repetition || 1} of ${EXPERIMENT_CONFIG.blocks_per_reward}</p>
+        <div class="block-preview">
+          <div>
+            <p class="muted">Points for each successful reach</p>
+            <p class="condition-number">${condition.reward_points}</p>
+          </div>
+          <div>
+            <p class="muted">Possible target sizes in this block</p>
+            <div class="target-preview-wrapper">
+              ${EXPERIMENT_CONFIG.target_widths_px
+                .map((width) => `<div class="target-preview-circle" style="width: ${width}px; height: ${width}px;"></div>`)
+                .join("")}
+            </div>
+            <p style="text-align:center;">Size changes every ${EXPERIMENT_CONFIG.chunk_duration_seconds} seconds</p>
+          </div>
+        </div>
+        <p>This block lasts <strong>${EXPERIMENT_CONFIG.block_duration_seconds} seconds</strong>. The progress bar will include tick marks at target-size transitions.</p>
+        <p>Use the Apple Pencil only. Start each trial by tapping the center, then tap the blue target.</p>
+        <p class="muted" style="text-align:center;">Tap the button below with the Apple Pencil to start this block.</p>
+      </div>
+    `,
+    data: {
+      screen_type: "block_intro",
+      block_index: blockIndex,
+      reward_condition_index: condition.reward_condition_index,
+      reward_repetition: condition.reward_repetition || 1,
+      reward_points: condition.reward_points,
+      block_duration_seconds: EXPERIMENT_CONFIG.block_duration_seconds,
+      chunk_duration_seconds: EXPERIMENT_CONFIG.chunk_duration_seconds,
+      target_width_chunk_sequence_json: JSON.stringify(widthSequence),
+    },
+  };
+}
+
+function makeRewardConditions(config) {
+  return config.reward_values.map((reward, index) => ({
+    reward_condition_index: index + 1,
+    reward_points: reward,
+  }));
+}
+
+function makeBlockSchedule(config) {
+  const rewardConditions = makeRewardConditions(config);
+  const blocks = [];
+
+  rewardConditions.forEach((condition) => {
+    for (let repetition = 1; repetition <= config.blocks_per_reward; repetition++) {
+      blocks.push({
+        ...condition,
+        reward_repetition: repetition,
+      });
+    }
+  });
+
+  return config.randomize_block_order ? shuffleArray(blocks) : blocks;
+}
+
+function buildTimeline(config) {
+  const timeline = [makeWelcomeTrial()];
+  const blockSchedule = makeBlockSchedule(config);
+  const widthSchedules = makeTargetWidthChunkSchedulesForBlocks(config, blockSchedule.length);
+
+  console.log("Target-width chunk schedules:");
+  widthSchedules.forEach((seq, i) => console.log(`Block ${i + 1}:`, seq.join(" -> ")));
+
+  blockSchedule.forEach((condition, conditionOrderIndex) => {
+    const blockIndex = conditionOrderIndex + 1;
+    const widthSequence = widthSchedules[conditionOrderIndex];
+
+    timeline.push(makeBlockIntroTrial(condition, blockIndex, blockSchedule.length, widthSequence));
+
+    timeline.push({
+      type: JsPsychTimedReachBlockTimedChunksSingleTarget,
+      canvas_width: config.canvas_width,
+      canvas_height: config.canvas_height,
+      block_duration_seconds: config.block_duration_seconds,
+      chunk_duration_seconds: config.chunk_duration_seconds,
+      target_distance_px: config.target_distance_px,
+      target_width_chunk_sequence: widthSequence,
+      directions_deg: config.directions_deg,
+      randomize_direction_order_within_block: config.randomize_direction_order_within_block,
+      allowed_pointer_types: config.allowed_pointer_types,
+      require_primary_pointer: config.require_primary_pointer,
+      reward_points: condition.reward_points,
+      block_index: blockIndex,
+      reward_condition_index: condition.reward_condition_index,
+      reward_repetition: condition.reward_repetition,
+      start_radius_px: config.start_radius_px,
+      movement_timeout_ms: config.movement_timeout_ms,
+      feedback_duration_ms: config.feedback_duration_ms,
+      strict_chunk_timing: config.strict_chunk_timing,
+      strict_block_timing: config.strict_block_timing,
+      save_mouse_path: config.save_mouse_path,
+      background_color: config.background_color,
+      start_color: config.start_color,
+      target_color: config.target_color,
+      show_target_locator_ring: config.show_target_locator_ring,
+      target_locator_ring_radius_px: config.target_locator_ring_radius_px,
+      target_locator_ring_line_width_px: config.target_locator_ring_line_width_px,
+      target_locator_ring_color: config.target_locator_ring_color,
+      target_locator_ring_dash: config.target_locator_ring_dash,
+      success_feedback_color: config.success_feedback_color,
+      fail_feedback_color: config.fail_feedback_color,
+      timeout_feedback_color: config.timeout_feedback_color,
+      chunk_end_feedback_color: config.chunk_end_feedback_color,
+      block_end_feedback_color: config.block_end_feedback_color,
+    });
+  });
+
+  return timeline;
+}
+
+/**************************************************************
+ * 8. FINAL SCREEN
+ **************************************************************/
+function showDownloadScreen() {
+  const totalPoints = REACHING_TRIAL_ROWS.reduce((sum, row) => sum + (row.points_earned || 0), 0);
+  const nTrials = REACHING_TRIAL_ROWS.length;
+
+  document.body.innerHTML = `
+    <div class="download-screen">
+      <h1>Experiment complete</h1>
+      <p>Total reaching trials: <strong>${nTrials}</strong></p>
+      <p>Total points: <strong>${formatPoints(totalPoints)}</strong></p>
+      <p>Participant ID: <strong>${EXPERIMENT_CONFIG.participant_id}</strong></p>
+      <p>Download the data below. The "reaching trials only" files exclude instruction screens and block-summary rows.</p>
+      <div class="download-buttons">
+        <button onclick="downloadReachData('csv', 'reaching_trials_only')">CSV: reaching trials only</button>
+        <button onclick="downloadReachData('json', 'reaching_trials_only')">JSON: reaching trials only</button>
+        <button class="secondary" onclick="downloadReachData('csv', 'all_trials')">CSV: all trials</button>
+        <button class="secondary" onclick="downloadReachData('json', 'all_trials')">JSON: all trials</button>
+      </div>
+    </div>
+  `;
+}
+
+/**************************************************************
+ * 9. RUN EXPERIMENT
+ **************************************************************/
+const validation = validateDeviceLock(EXPERIMENT_CONFIG);
+if (!validation.ok) {
+  renderDeviceLockError(validation);
+} else {
+  const timeline = buildTimeline(EXPERIMENT_CONFIG);
+  jsPsych.run(timeline);
+}
+</script>
+</html>

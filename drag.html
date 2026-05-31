@@ -1,0 +1,1884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Reaching Task: Drag/Lift with Optional Calibration</title>
+
+  <script src="https://unpkg.com/jspsych@8.2.3"></script>
+  <link href="https://unpkg.com/jspsych@8.2.3/css/jspsych.css" rel="stylesheet" type="text/css" />
+
+  <style>
+    html, body {
+      margin: 0;
+      overflow: hidden;
+      touch-action: none;
+      overscroll-behavior: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    * { -webkit-tap-highlight-color: transparent; }
+
+    body {
+      background: #f5f5f5;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .instruction-card {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 28px 34px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      text-align: left;
+      line-height: 1.55;
+    }
+
+    .instruction-card h1, .instruction-card h2 {
+      margin-top: 0;
+      text-align: center;
+    }
+
+    .muted { color: #555; }
+
+    .diagnostics {
+      margin-top: 18px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #f7f7f7;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+      color: #333;
+    }
+
+    .target-preview-wrapper {
+      min-height: 120px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #ddd;
+      border-radius: 16px;
+      background: #fafafa;
+      padding: 12px;
+      margin: 20px 0;
+    }
+
+    .target-preview-circle {
+      border-radius: 50%;
+      background: #2f6fed;
+      opacity: 0.85;
+      flex: 0 0 auto;
+    }
+
+    .pen-continue-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .pen-continue-button {
+      border: none;
+      border-radius: 12px;
+      padding: 16px 24px;
+      font-size: 20px;
+      font-weight: 750;
+      background: #2f6fed;
+      color: white;
+      cursor: pointer;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .pen-continue-warning {
+      min-height: 24px;
+      color: #b00020;
+      font-weight: 650;
+      text-align: center;
+    }
+
+    #reach-wrapper {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      transition: background-color 120ms linear;
+      box-sizing: border-box;
+      padding: 12px;
+    }
+
+    #block-timer-panel {
+      width: 900px;
+      max-width: calc(100vw - 32px);
+      background: white;
+      border: 1px solid #d7d7d7;
+      border-radius: 14px;
+      padding: 12px 16px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+      box-sizing: border-box;
+    }
+
+    .timer-row, .score-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+      font-size: 15px;
+      color: #333;
+    }
+
+    .score-row span { white-space: nowrap; }
+    .timer-row strong, .score-row strong { font-weight: 800; }
+
+    #last-score-label {
+      display: inline-block;
+      min-width: 44px;
+      text-align: right;
+      transition: transform 120ms linear;
+    }
+
+    #last-score-label.score-flash { transform: scale(1.18); }
+
+    .progress-track {
+      position: relative;
+      width: 100%;
+      height: 14px;
+      background: #eeeeee;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      background: #2f6fed;
+      border-radius: 999px;
+      transition: width 80ms linear;
+    }
+
+    .progress-tick {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: rgba(0, 0, 0, 0.34);
+      transform: translateX(-1px);
+      z-index: 2;
+    }
+
+    #reach-canvas {
+      border: 1px solid #cfcfcf;
+      border-radius: 16px;
+      background: #ffffff;
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.08);
+      cursor: crosshair;
+      touch-action: none;
+      max-width: calc(100vw - 32px);
+      max-height: calc(100vh - 170px);
+    }
+
+    #reach-message {
+      min-height: 24px;
+      font-size: 18px;
+      color: #333;
+      text-align: center;
+    }
+
+    .download-screen {
+      max-width: 780px;
+      margin: 80px auto;
+      padding: 32px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .download-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .download-buttons button {
+      border: none;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 15px;
+      cursor: pointer;
+      background: #2f6fed;
+      color: white;
+      font-weight: 650;
+    }
+
+    .download-buttons button.secondary { background: #444; }
+  </style>
+</head>
+<body></body>
+
+<script>
+/**************************************************************
+ * 1. EASY-TO-EDIT EXPERIMENT PARAMETERS
+ **************************************************************/
+const EXPERIMENT_CONFIG = {
+  participant_id:
+    new URLSearchParams(window.location.search).get("participant") ||
+    `anon_${Math.random().toString(36).slice(2, 10)}`,
+
+  canvas_width: 900,
+  canvas_height: 700,
+  target_distance_px: 250,
+  start_radius_px: 22,
+
+  allowed_pointer_types: ["pen"],
+  require_primary_pointer: true,
+  response_mode: "press_move_lift",
+
+  device_lock: {
+    enabled: false,
+    expected_inner_width: null,
+    expected_inner_height: null,
+    expected_device_pixel_ratio: null,
+    required_orientation: "landscape",
+    require_touch_device: true,
+    tolerance_css_px: 2,
+    tolerance_device_pixel_ratio: 0.02,
+  },
+
+  // Set this to false to skip calibration and use manual_calibrated_widths_px.
+  use_calibration_phase: true,
+
+  manual_calibrated_widths_px: {
+    speed_large: 64,
+    balanced_middle: 60,
+    accuracy_small: 36,
+  },
+
+  calibration: {
+    candidate_widths_px: [14, 16, 18, 24, 32, 48, 64],
+    prefixed_large_width_px: 64,
+    chunk_duration_seconds: 20,
+    repetitions_per_width: 1,
+    randomize_width_order: true,
+    reward_points: 0,
+    movement_timeout_ms: null,
+    strict_block_timing: false,
+    small_width_min_success_rate: 0.75,
+    small_width_min_completed_trials: 4,
+    balanced_selection_method: "closest_to_ideal",
+    require_balanced_width_between_edges: true,
+  },
+
+  fixed_size_training: {
+    enabled: true,
+    block_duration_seconds: 45,
+    repetitions_per_width: 2,
+    order: "random",
+    reward_points: 1,
+    strict_block_timing: true,
+  },
+
+  switching_task: {
+    reward_values: [1, 10],
+    block_duration_seconds: 60,
+    chunk_duration_seconds: 10,
+    blocks_per_reward: 4,
+    randomize_block_order: true,
+    balance_target_width_transitions_across_blocks: true,
+    strict_chunk_timing: true,
+    strict_block_timing: true,
+  },
+
+  // directions_deg: [0, 45, 90, 135, 180, 225, 270, 315],
+  directions_deg: [90, 180],
+  randomize_direction_order_within_block: true,
+
+  movement_timeout_ms: 4000,
+  feedback_duration_ms: 350,
+
+  save_mouse_path: true,
+  filename_prefix: "reaching_drag_lift_optional_calibration",
+
+  background_color: "#ffffff",
+  start_color: "#111111",
+  target_color: "#2f6fed",
+
+  show_target_locator_ring: true,
+  target_locator_ring_radius_px: 70,
+  target_locator_ring_line_width_px: 3,
+  target_locator_ring_color: "rgba(0, 0, 0, 0.35)",
+  target_locator_ring_dash: [8, 6],
+
+  success_feedback_color: "#d8f5d1",
+  fail_feedback_color: "#ffd8d8",
+  timeout_feedback_color: "#fff0bf",
+  chunk_end_feedback_color: "#e8e8ff",
+  block_end_feedback_color: "#eeeeee",
+};
+
+/**************************************************************
+ * 2. GLOBAL STATE AND HELPERS
+ **************************************************************/
+const EXPERIMENT_NAME = "reaching_drag_lift_optional_calibration";
+const EXPERIMENT_START_TIME = performance.now();
+const GLOBAL_DATA_ROWS = [];
+let GLOBAL_TOTAL_SCORE = 0;
+let GLOBAL_REACHING_TRIAL_INDEX = 0;
+let GLOBAL_SELECTED_WIDTHS = normalizeManualWidths(EXPERIMENT_CONFIG.manual_calibrated_widths_px);
+let GLOBAL_CALIBRATION_RESULT = null;
+let GLOBAL_SWITCHING_CHUNK_SEQUENCES = null;
+
+function normalizeManualWidths(widths) {
+  return {
+    speed_large: widths.speed_large,
+    balanced_middle: widths.balanced_middle,
+    accuracy_small: widths.accuracy_small,
+  };
+}
+
+function shuffleArray(array) {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function distance(a, b) {
+  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+}
+
+function median(values) {
+  const clean = values.filter((v) => Number.isFinite(v)).sort((a, b) => a - b);
+  if (clean.length === 0) return null;
+  const mid = Math.floor(clean.length / 2);
+  return clean.length % 2 === 0 ? (clean[mid - 1] + clean[mid]) / 2 : clean[mid];
+}
+
+function mean(values) {
+  const clean = values.filter((v) => Number.isFinite(v));
+  if (clean.length === 0) return null;
+  return clean.reduce((a, b) => a + b, 0) / clean.length;
+}
+
+function nowForFilename() {
+  return new Date().toISOString().replace(/[:.]/g, "-");
+}
+
+function formatPoints(value) {
+  return Number.isInteger(value) ? String(value) : Number(value).toFixed(2);
+}
+
+function formatClock(ms) {
+  const safeMs = Math.max(0, ms);
+  const totalSeconds = Math.ceil(safeMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function formatElapsedClock(ms) {
+  const safeMs = Math.max(0, ms);
+  const totalSeconds = Math.floor(safeMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function makeTargetPosition(canvasWidth, canvasHeight, distancePx, angleDeg) {
+  const centerX = canvasWidth / 2;
+  const centerY = canvasHeight / 2;
+  const angleRad = (angleDeg * Math.PI) / 180;
+  return {
+    x: centerX + distancePx * Math.cos(angleRad),
+    y: centerY - distancePx * Math.sin(angleRad),
+  };
+}
+
+function computePathStats(samples, rtMs) {
+  if (!samples || samples.length < 2 || !Number.isFinite(rtMs) || rtMs <= 0) {
+    return { path_length_px: null, mean_speed_px_per_s: null, peak_speed_px_per_s: null };
+  }
+
+  let pathLength = 0;
+  let peakSpeed = 0;
+  for (let i = 1; i < samples.length; i++) {
+    const prev = samples[i - 1];
+    const curr = samples[i];
+    const segmentDistance = distance(prev, curr);
+    const dtMs = curr.t - prev.t;
+    pathLength += segmentDistance;
+    if (dtMs > 0) peakSpeed = Math.max(peakSpeed, segmentDistance / (dtMs / 1000));
+  }
+
+  return {
+    path_length_px: pathLength,
+    mean_speed_px_per_s: pathLength / (rtMs / 1000),
+    peak_speed_px_per_s: peakSpeed,
+  };
+}
+
+function getDeviceInfo() {
+  return {
+    inner_width: window.innerWidth,
+    inner_height: window.innerHeight,
+    device_pixel_ratio: window.devicePixelRatio,
+    orientation: window.innerWidth >= window.innerHeight ? "landscape" : "portrait",
+    max_touch_points: navigator.maxTouchPoints || 0,
+    user_agent: navigator.userAgent,
+  };
+}
+
+function validateDeviceLock(config) {
+  const info = getDeviceInfo();
+  const lock = config.device_lock;
+  const errors = [];
+
+  if (lock.require_touch_device && info.max_touch_points <= 0) {
+    errors.push("This device does not report touch support.");
+  }
+  if (lock.required_orientation && info.orientation !== lock.required_orientation) {
+    errors.push(`Required orientation is ${lock.required_orientation}, but detected ${info.orientation}.`);
+  }
+  if (lock.enabled) {
+    if (lock.expected_inner_width !== null && Math.abs(info.inner_width - lock.expected_inner_width) > lock.tolerance_css_px) {
+      errors.push(`innerWidth mismatch: expected ${lock.expected_inner_width}, detected ${info.inner_width}.`);
+    }
+    if (lock.expected_inner_height !== null && Math.abs(info.inner_height - lock.expected_inner_height) > lock.tolerance_css_px) {
+      errors.push(`innerHeight mismatch: expected ${lock.expected_inner_height}, detected ${info.inner_height}.`);
+    }
+    if (lock.expected_device_pixel_ratio !== null && Math.abs(info.device_pixel_ratio - lock.expected_device_pixel_ratio) > lock.tolerance_device_pixel_ratio) {
+      errors.push(`devicePixelRatio mismatch: expected ${lock.expected_device_pixel_ratio}, detected ${info.device_pixel_ratio}.`);
+    }
+  }
+
+  return { ok: errors.length === 0, errors, info };
+}
+
+function isAllowedPointer(event, allowedTypes, requirePrimary) {
+  if (requirePrimary && event.isPrimary === false) return false;
+  return allowedTypes.includes(event.pointerType);
+}
+
+function appendDataRow(row) {
+  GLOBAL_DATA_ROWS.push({
+    participant_id: EXPERIMENT_CONFIG.participant_id,
+    experiment_name: EXPERIMENT_NAME,
+    time_elapsed: Math.round(performance.now() - EXPERIMENT_START_TIME),
+    response_mode: EXPERIMENT_CONFIG.response_mode,
+    calibration_used: EXPERIMENT_CONFIG.use_calibration_phase,
+    calibrated_width_speed_large_px: GLOBAL_SELECTED_WIDTHS ? GLOBAL_SELECTED_WIDTHS.speed_large : null,
+    calibrated_width_balanced_middle_px: GLOBAL_SELECTED_WIDTHS ? GLOBAL_SELECTED_WIDTHS.balanced_middle : null,
+    calibrated_width_accuracy_small_px: GLOBAL_SELECTED_WIDTHS ? GLOBAL_SELECTED_WIDTHS.accuracy_small : null,
+    ...row,
+  });
+}
+
+function checkGeometryForWidths(widthsPx, config) {
+  const maxTargetWidth = Math.max(...widthsPx);
+  const maxRadius = Math.max(maxTargetWidth / 2, config.target_locator_ring_radius_px || 0);
+  const safeHalfWidth = config.canvas_width / 2 - maxRadius;
+  const safeHalfHeight = config.canvas_height / 2 - maxRadius;
+  if (config.target_distance_px > Math.min(safeHalfWidth, safeHalfHeight)) {
+    console.warn("Some targets or locator rings may be partly outside the canvas. Adjust target_distance_px, canvas size, or locator radius.");
+  }
+}
+
+checkGeometryForWidths(
+  [...EXPERIMENT_CONFIG.calibration.candidate_widths_px, ...Object.values(EXPERIMENT_CONFIG.manual_calibrated_widths_px)],
+  EXPERIMENT_CONFIG
+);
+
+/**************************************************************
+ * 3. WIDTH SELECTION AND TRANSITION SCHEDULING
+ **************************************************************/
+const WIDTH_LABEL_ORDER = ["accuracy_small", "balanced_middle", "speed_large"];
+
+function widthForLabel(label) {
+  if (!GLOBAL_SELECTED_WIDTHS || GLOBAL_SELECTED_WIDTHS[label] === undefined) {
+    throw new Error(`Width label ${label} requested before widths were selected.`);
+  }
+  return GLOBAL_SELECTED_WIDTHS[label];
+}
+
+function labelForWidth(width) {
+  if (!GLOBAL_SELECTED_WIDTHS) return null;
+  const entries = Object.entries(GLOBAL_SELECTED_WIDTHS);
+  const found = entries.find(([, value]) => Number(value) === Number(width));
+  return found ? found[0] : null;
+}
+
+function makeEulerianCycle(values) {
+  const nodes = shuffleArray(values);
+  const adjacency = new Map();
+  nodes.forEach((from) => {
+    adjacency.set(String(from), shuffleArray(nodes.filter((to) => to !== from)));
+  });
+
+  const stack = [nodes[0]];
+  const path = [];
+  while (stack.length > 0) {
+    const current = stack[stack.length - 1];
+    const edges = adjacency.get(String(current));
+    if (edges && edges.length > 0) stack.push(edges.pop());
+    else path.push(stack.pop());
+  }
+  return path.reverse();
+}
+
+function getChunksPerBlock(blockDurationSeconds, chunkDurationSeconds) {
+  return Math.ceil(blockDurationSeconds / chunkDurationSeconds);
+}
+
+function makeProgressTicksHtml(blockDurationSeconds, chunkDurationSeconds) {
+  if (!chunkDurationSeconds || chunkDurationSeconds <= 0) return "";
+  const ticks = [];
+  for (let t = chunkDurationSeconds; t < blockDurationSeconds; t += chunkDurationSeconds) {
+    const pct = (t / blockDurationSeconds) * 100;
+    ticks.push(`<div class="progress-tick" style="left: ${pct}%;"></div>`);
+  }
+  return ticks.join("");
+}
+
+function initializeSwitchingChunkSequences(nBlocks) {
+  const labels = WIDTH_LABEL_ORDER.filter((label) => GLOBAL_SELECTED_WIDTHS[label] !== undefined);
+  const chunksPerBlock = getChunksPerBlock(
+    EXPERIMENT_CONFIG.switching_task.block_duration_seconds,
+    EXPERIMENT_CONFIG.switching_task.chunk_duration_seconds
+  );
+  const transitionsPerBlock = Math.max(0, chunksPerBlock - 1);
+
+  if (labels.length <= 1) {
+    GLOBAL_SWITCHING_CHUNK_SEQUENCES = Array.from({ length: nBlocks }, () =>
+      Array.from({ length: chunksPerBlock }, () => labels[0])
+    );
+    return;
+  }
+
+  if (!EXPERIMENT_CONFIG.switching_task.balance_target_width_transitions_across_blocks) {
+    GLOBAL_SWITCHING_CHUNK_SEQUENCES = Array.from({ length: nBlocks }, () => {
+      const seq = [];
+      let previous = null;
+      for (let i = 0; i < chunksPerBlock; i++) {
+        const candidates = labels.filter((label) => label !== previous);
+        const next = shuffleArray(candidates)[0];
+        seq.push(next);
+        previous = next;
+      }
+      return seq;
+    });
+    return;
+  }
+
+  const transitionTypes = labels.length * (labels.length - 1);
+  const totalTransitions = nBlocks * transitionsPerBlock;
+  const cycle = makeEulerianCycle(labels);
+  const transitionsPerCycle = cycle.length - 1;
+
+  if (totalTransitions % transitionTypes !== 0) {
+    console.warn(
+      `Exact calibrated-width transition counterbalancing is impossible with ${totalTransitions} transitions and ${transitionTypes} transition types. Counts will be approximately balanced.`
+    );
+  }
+
+  const longSeq = [cycle[0]];
+  for (let i = 0; i < totalTransitions; i++) {
+    longSeq.push(cycle[(i % transitionsPerCycle) + 1]);
+  }
+
+  const schedules = [];
+  let offset = 0;
+  for (let b = 0; b < nBlocks; b++) {
+    schedules.push(longSeq.slice(offset, offset + chunksPerBlock));
+    offset += transitionsPerBlock;
+  }
+  GLOBAL_SWITCHING_CHUNK_SEQUENCES = schedules;
+}
+
+function getSwitchingSequenceForBlock(sequenceIndex, nSwitchingBlocks) {
+  if (!GLOBAL_SWITCHING_CHUNK_SEQUENCES) initializeSwitchingChunkSequences(nSwitchingBlocks);
+  return GLOBAL_SWITCHING_CHUNK_SEQUENCES[sequenceIndex];
+}
+
+function makeDirectionSampler(config) {
+  let bag = [];
+  function refillBag() {
+    bag = config.randomize_direction_order_within_block
+      ? shuffleArray(config.directions_deg)
+      : [...config.directions_deg];
+  }
+  return function getNextDirection() {
+    if (bag.length === 0) refillBag();
+    return bag.pop();
+  };
+}
+
+function summarizeCalibrationRows() {
+  const rows = GLOBAL_DATA_ROWS.filter((row) => row.task === "reaching" && row.phase === "calibration");
+  const candidateWidths = [...EXPERIMENT_CONFIG.calibration.candidate_widths_px].sort((a, b) => a - b);
+
+  return candidateWidths.map((width) => {
+    const widthRows = rows.filter((row) => Number(row.target_width_px) === Number(width));
+    const completed = widthRows.filter((row) => !row.timed_out && row.endpoint_error_px !== null && row.endpoint_error_px !== undefined);
+    const nCorrect = completed.filter((row) => row.correct).length;
+    return {
+      width_px: width,
+      n_trials: widthRows.length,
+      n_completed: completed.length,
+      n_correct: nCorrect,
+      success_rate: completed.length > 0 ? nCorrect / completed.length : null,
+      median_rt_ms: median(completed.map((row) => row.rt_ms)),
+      median_endpoint_error_px: median(completed.map((row) => row.endpoint_error_px)),
+      median_relative_error: median(completed.map((row) => row.relative_error)),
+      mean_relative_error: mean(completed.map((row) => row.relative_error)),
+    };
+  });
+}
+
+function chooseCalibrationWidths() {
+  const cfg = EXPERIMENT_CONFIG.calibration;
+  const summary = summarizeCalibrationRows();
+  const warnings = [];
+  const large = cfg.prefixed_large_width_px;
+
+  if (!cfg.candidate_widths_px.includes(large)) {
+    warnings.push("prefixed_large_width_not_in_candidate_widths");
+  }
+
+  const validForSmall = summary.filter((item) =>
+    item.n_completed >= cfg.small_width_min_completed_trials &&
+    item.success_rate !== null &&
+    item.success_rate >= cfg.small_width_min_success_rate
+  );
+
+  let smallItem = null;
+  if (validForSmall.length > 0) {
+    smallItem = [...validForSmall].sort((a, b) => a.width_px - b.width_px)[0];
+  } else {
+    warnings.push("no_width_met_small_accuracy_threshold");
+    const completedAny = summary.filter((item) => item.n_completed > 0 && item.success_rate !== null);
+    if (completedAny.length > 0) {
+      smallItem = [...completedAny].sort((a, b) => {
+        if (b.success_rate !== a.success_rate) return b.success_rate - a.success_rate;
+        return a.width_px - b.width_px;
+      })[0];
+    } else {
+      warnings.push("no_completed_calibration_trials");
+      smallItem = { width_px: Math.min(...cfg.candidate_widths_px) };
+    }
+  }
+
+  let small = smallItem.width_px;
+  if (Number(small) === Number(large)) {
+    const smallerCandidates = cfg.candidate_widths_px.filter((w) => w < large).sort((a, b) => b - a);
+    if (smallerCandidates.length > 0) {
+      warnings.push("small_width_equaled_large_width_adjusted_to_next_smaller_candidate");
+      small = smallerCandidates[0];
+    } else {
+      warnings.push("small_width_equaled_large_width_no_smaller_candidate_available");
+    }
+  }
+
+  const low = Math.min(small, large);
+  const high = Math.max(small, large);
+  const withMetrics = summary.filter((item) =>
+    item.width_px >= low && item.width_px <= high &&
+    item.n_completed > 0 &&
+    Number.isFinite(item.median_rt_ms) &&
+    Number.isFinite(item.median_relative_error)
+  );
+
+  let middleCandidates = withMetrics;
+  if (cfg.require_balanced_width_between_edges) {
+    const strictlyBetween = withMetrics.filter((item) => item.width_px > low && item.width_px < high);
+    if (strictlyBetween.length > 0) middleCandidates = strictlyBetween;
+    else warnings.push("no_strictly_intermediate_width_with_metrics_for_balanced_selection");
+  }
+
+  let balanced = null;
+  if (middleCandidates.length > 0) {
+    const rtValues = withMetrics.map((item) => item.median_rt_ms);
+    const errValues = withMetrics.map((item) => item.median_relative_error);
+    const minRt = Math.min(...rtValues);
+    const maxRt = Math.max(...rtValues);
+    const minErr = Math.min(...errValues);
+    const maxErr = Math.max(...errValues);
+
+    const scored = middleCandidates.map((item) => {
+      const rtDenom = maxRt - minRt;
+      const errDenom = maxErr - minErr;
+      const rtNorm = rtDenom > 0 ? (item.median_rt_ms - minRt) / rtDenom : 0;
+      const errNorm = errDenom > 0 ? (item.median_relative_error - minErr) / errDenom : 0;
+      return {
+        ...item,
+        rt_norm: rtNorm,
+        error_norm: errNorm,
+        distance_to_ideal: Math.sqrt(rtNorm ** 2 + errNorm ** 2),
+      };
+    });
+
+    scored.sort((a, b) => {
+      if (a.distance_to_ideal !== b.distance_to_ideal) return a.distance_to_ideal - b.distance_to_ideal;
+      return Math.abs(a.width_px - (small + large) / 2) - Math.abs(b.width_px - (small + large) / 2);
+    });
+    balanced = scored[0].width_px;
+  } else {
+    warnings.push("no_middle_candidates_with_metrics_using_nearest_width_midpoint_fallback");
+    const midpoint = (small + large) / 2;
+    const candidates = cfg.candidate_widths_px.filter((w) => w !== small && w !== large);
+    const pool = candidates.length > 0 ? candidates : cfg.candidate_widths_px;
+    balanced = [...pool].sort((a, b) => Math.abs(a - midpoint) - Math.abs(b - midpoint))[0];
+  }
+
+  GLOBAL_SELECTED_WIDTHS = {
+    speed_large: large,
+    balanced_middle: balanced,
+    accuracy_small: small,
+  };
+
+  GLOBAL_CALIBRATION_RESULT = {
+    algorithm_version: "one_pass_success_threshold_plus_nearest_normalized_origin_v1",
+    selected_widths_px: { ...GLOBAL_SELECTED_WIDTHS },
+    warnings,
+    summary,
+    config: cfg,
+  };
+
+  appendDataRow({
+    task: "calibration_result",
+    phase: "calibration",
+    calibration_algorithm_version: GLOBAL_CALIBRATION_RESULT.algorithm_version,
+    calibration_warnings_json: JSON.stringify(warnings),
+    calibrated_width_speed_large_px: GLOBAL_SELECTED_WIDTHS.speed_large,
+    calibrated_width_balanced_middle_px: GLOBAL_SELECTED_WIDTHS.balanced_middle,
+    calibrated_width_accuracy_small_px: GLOBAL_SELECTED_WIDTHS.accuracy_small,
+    calibration_summary_json: JSON.stringify(summary),
+    calibration_result_json: JSON.stringify(GLOBAL_CALIBRATION_RESULT),
+  });
+
+  return GLOBAL_CALIBRATION_RESULT;
+}
+
+function setManualCalibrationResult() {
+  GLOBAL_SELECTED_WIDTHS = normalizeManualWidths(EXPERIMENT_CONFIG.manual_calibrated_widths_px);
+  GLOBAL_CALIBRATION_RESULT = {
+    algorithm_version: "manual_widths_v1",
+    selected_widths_px: { ...GLOBAL_SELECTED_WIDTHS },
+    warnings: [],
+    summary: [],
+    config: EXPERIMENT_CONFIG.manual_calibrated_widths_px,
+  };
+  appendDataRow({
+    task: "calibration_result",
+    phase: "manual_widths",
+    calibration_algorithm_version: GLOBAL_CALIBRATION_RESULT.algorithm_version,
+    calibrated_width_speed_large_px: GLOBAL_SELECTED_WIDTHS.speed_large,
+    calibrated_width_balanced_middle_px: GLOBAL_SELECTED_WIDTHS.balanced_middle,
+    calibrated_width_accuracy_small_px: GLOBAL_SELECTED_WIDTHS.accuracy_small,
+    calibration_summary_json: JSON.stringify([]),
+    calibration_result_json: JSON.stringify(GLOBAL_CALIBRATION_RESULT),
+  });
+}
+
+/**************************************************************
+ * 4. CSV / DOWNLOAD HELPERS
+ **************************************************************/
+function escapeCSVValue(value) {
+  if (value === null || value === undefined) return "";
+  const str = String(value);
+  if (str.includes('"') || str.includes(",") || str.includes("\n")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function rowsToCSV(rows) {
+  if (!rows || rows.length === 0) return "";
+  const headers = Array.from(rows.reduce((set, row) => {
+    Object.keys(row).forEach((key) => set.add(key));
+    return set;
+  }, new Set()));
+  return [
+    headers.join(","),
+    ...rows.map((row) => headers.map((header) => escapeCSVValue(row[header])).join(",")),
+  ].join("\n");
+}
+
+function downloadTextFile(text, filename, mimeType) {
+  const blob = new Blob([text], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function makeDataFilename(format, subset) {
+  return `${EXPERIMENT_CONFIG.filename_prefix}_${EXPERIMENT_CONFIG.participant_id}_${subset}_${nowForFilename()}.${format}`;
+}
+
+window.downloadReachData = function (format, subset = "all_rows") {
+  let rows = GLOBAL_DATA_ROWS;
+  if (subset === "reaching_trials_only") rows = rows.filter((row) => row.task === "reaching");
+  if (subset === "main_switching_only") rows = rows.filter((row) => row.task === "reaching" && row.phase === "switching_task");
+
+  if (format === "csv") {
+    downloadTextFile(rowsToCSV(rows), makeDataFilename("csv", subset), "text/csv;charset=utf-8");
+  } else if (format === "json") {
+    downloadTextFile(JSON.stringify(rows, null, 2), makeDataFilename("json", subset), "application/json;charset=utf-8");
+  } else {
+    throw new Error(`Unsupported format: ${format}`);
+  }
+};
+
+/**************************************************************
+ * 5. JSPSYCH INIT AND CUSTOM PLUGINS
+ **************************************************************/
+const jsPsych = initJsPsych({
+  show_progress_bar: true,
+  auto_update_progress_bar: true,
+  on_finish: function () { showDownloadScreen(); },
+});
+
+const ParameterType =
+  (window.jsPsychModule && window.jsPsychModule.ParameterType) ||
+  jsPsych.ParameterType ||
+  { BOOL: "BOOL", STRING: "STRING", INT: "INT", FLOAT: "FLOAT", OBJECT: "OBJECT", FUNCTION: "FUNCTION" };
+
+const penContinueInfo = {
+  name: "pen-continue-screen",
+  parameters: {
+    title: { type: ParameterType.STRING, default: "" },
+    html: { type: ParameterType.STRING, default: "" },
+    button_text: { type: ParameterType.STRING, default: "Continue" },
+    allowed_pointer_types: { type: ParameterType.OBJECT, default: ["pen"] },
+    require_primary_pointer: { type: ParameterType.BOOL, default: true },
+    data: { type: ParameterType.OBJECT, default: {} },
+  },
+};
+
+class JsPsychPenContinueScreen {
+  constructor(jsPsychInstance) { this.jsPsych = jsPsychInstance; }
+
+  trial(display_element, trial) {
+    display_element.innerHTML = `
+      <div class="instruction-card">
+        ${trial.title ? `<h1>${trial.title}</h1>` : ""}
+        ${trial.html}
+        <div class="pen-continue-wrapper">
+          <button id="pen-continue-button" class="pen-continue-button">${trial.button_text}</button>
+          <div id="pen-continue-warning" class="pen-continue-warning"></div>
+        </div>
+      </div>
+    `;
+
+    const button = display_element.querySelector("#pen-continue-button");
+    const warning = display_element.querySelector("#pen-continue-warning");
+    const plugin = this;
+
+    function handlePointerDown(event) {
+      event.preventDefault();
+      if (!isAllowedPointer(event, trial.allowed_pointer_types, trial.require_primary_pointer)) {
+        warning.textContent = `Please use the Apple Pencil. Detected input: ${event.pointerType || "unknown"}.`;
+        return;
+      }
+      button.removeEventListener("pointerdown", handlePointerDown);
+      plugin.jsPsych.finishTrial(trial.data || {});
+    }
+
+    button.addEventListener("pointerdown", handlePointerDown);
+  }
+}
+JsPsychPenContinueScreen.info = penContinueInfo;
+
+const computeCalibrationInfo = {
+  name: "compute-calibration",
+  parameters: {},
+};
+
+class JsPsychComputeCalibration {
+  constructor(jsPsychInstance) { this.jsPsych = jsPsychInstance; }
+  trial(display_element) {
+    if (EXPERIMENT_CONFIG.use_calibration_phase) chooseCalibrationWidths();
+    else setManualCalibrationResult();
+    this.jsPsych.finishTrial({ task: "compute_calibration" });
+  }
+}
+JsPsychComputeCalibration.info = computeCalibrationInfo;
+
+const reachBlockInfo = {
+  name: "timed-drag-lift-reach-block",
+  parameters: {
+    phase: { type: ParameterType.STRING, default: "switching_task" },
+    block_kind: { type: ParameterType.STRING, default: "fixed" },
+    phase_block_index: { type: ParameterType.INT, default: 0 },
+    block_index: { type: ParameterType.INT, default: 0 },
+    block_title: { type: ParameterType.STRING, default: "Block" },
+    canvas_width: { type: ParameterType.INT, default: 900 },
+    canvas_height: { type: ParameterType.INT, default: 700 },
+    block_duration_seconds: { type: ParameterType.FLOAT, default: 60 },
+    chunk_duration_seconds: { type: ParameterType.FLOAT, default: null },
+    fixed_target_width_px: { type: ParameterType.FLOAT, default: null },
+    fixed_width_label: { type: ParameterType.STRING, default: null },
+    target_width_chunk_sequence_px: { type: ParameterType.OBJECT, default: null },
+    target_width_chunk_sequence_labels: { type: ParameterType.OBJECT, default: null },
+    switching_block_sequence_index: { type: ParameterType.INT, default: null },
+    n_switching_blocks: { type: ParameterType.INT, default: null },
+    target_distance_px: { type: ParameterType.FLOAT, default: 250 },
+    directions_deg: { type: ParameterType.OBJECT, default: [0, 45, 90, 135, 180, 225, 270, 315] },
+    randomize_direction_order_within_block: { type: ParameterType.BOOL, default: true },
+    allowed_pointer_types: { type: ParameterType.OBJECT, default: ["pen"] },
+    require_primary_pointer: { type: ParameterType.BOOL, default: true },
+    reward_points: { type: ParameterType.FLOAT, default: 1 },
+    reward_condition_index: { type: ParameterType.INT, default: null },
+    reward_repetition: { type: ParameterType.INT, default: null },
+    start_radius_px: { type: ParameterType.FLOAT, default: 22 },
+    movement_timeout_ms: { type: ParameterType.FLOAT, default: 4000 },
+    feedback_duration_ms: { type: ParameterType.INT, default: 350 },
+    strict_chunk_timing: { type: ParameterType.BOOL, default: true },
+    strict_block_timing: { type: ParameterType.BOOL, default: true },
+    show_score_panel: { type: ParameterType.BOOL, default: true },
+    save_mouse_path: { type: ParameterType.BOOL, default: true },
+    background_color: { type: ParameterType.STRING, default: "#ffffff" },
+    start_color: { type: ParameterType.STRING, default: "#111111" },
+    target_color: { type: ParameterType.STRING, default: "#2f6fed" },
+    show_target_locator_ring: { type: ParameterType.BOOL, default: true },
+    target_locator_ring_radius_px: { type: ParameterType.FLOAT, default: 70 },
+    target_locator_ring_line_width_px: { type: ParameterType.FLOAT, default: 3 },
+    target_locator_ring_color: { type: ParameterType.STRING, default: "rgba(0,0,0,0.35)" },
+    target_locator_ring_dash: { type: ParameterType.OBJECT, default: [8, 6] },
+    success_feedback_color: { type: ParameterType.STRING, default: "#d8f5d1" },
+    fail_feedback_color: { type: ParameterType.STRING, default: "#ffd8d8" },
+    timeout_feedback_color: { type: ParameterType.STRING, default: "#fff0bf" },
+    chunk_end_feedback_color: { type: ParameterType.STRING, default: "#e8e8ff" },
+    block_end_feedback_color: { type: ParameterType.STRING, default: "#eeeeee" },
+  },
+};
+
+class JsPsychTimedDragLiftReachBlock {
+  constructor(jsPsychInstance) { this.jsPsych = jsPsychInstance; }
+
+  trial(display_element, block) {
+    const blockDurationMs = block.block_duration_seconds * 1000;
+    const blockStartTime = performance.now();
+    const blockEndTime = blockStartTime + blockDurationMs;
+    const center = { x: block.canvas_width / 2, y: block.canvas_height / 2 };
+    const getNextDirection = makeDirectionSampler(block);
+
+    let phase = "waiting_for_start";
+    let blockFinished = false;
+    let animationFrameId = null;
+    let movementTimeoutHandle = null;
+    let feedbackTimeoutHandle = null;
+    let blockEndTimeoutHandle = null;
+    let trialInBlock = 0;
+    let blockPoints = 0;
+    let blockCorrectTrials = 0;
+    let blockTimedOutTrials = 0;
+    let chunkExpiredTrials = 0;
+    let blockExpiredTrials = 0;
+    let currentTrial = null;
+    let activePointerId = null;
+
+    const widthSchedule = resolveWidthSchedule(block);
+    const trialsStartedPerChunk = Array.from({ length: widthSchedule.length }, () => 0);
+    const trialsCompletedPerChunk = Array.from({ length: widthSchedule.length }, () => 0);
+
+    display_element.innerHTML = `
+      <div id="reach-wrapper" style="background-color: ${block.background_color};">
+        <div id="block-timer-panel">
+          <div class="timer-row">
+            <span><strong>${block.block_title}</strong>${block.reward_points > 0 ? ` | Reward: <strong>${block.reward_points}</strong> points` : ""}</span>
+            <span>Elapsed: <strong id="elapsed-time-label">0:00</strong> &nbsp; Remaining: <strong id="remaining-time-label">${formatClock(blockDurationMs)}</strong></span>
+          </div>
+          ${block.show_score_panel ? `
+          <div class="score-row" aria-label="Score panel">
+            <span>Total score: <strong id="total-score-label">${formatPoints(GLOBAL_TOTAL_SCORE)}</strong></span>
+            <span>Current block: <strong id="block-score-label">0</strong></span>
+            <span>Last: <strong id="last-score-label">—</strong></span>
+          </div>` : ""}
+          <div class="progress-track" aria-label="Block progress bar">
+            <div id="block-progress-fill" class="progress-fill"></div>
+            ${block.block_kind === "switching" ? makeProgressTicksHtml(block.block_duration_seconds, block.chunk_duration_seconds) : ""}
+          </div>
+        </div>
+        <canvas id="reach-canvas" width="${block.canvas_width}" height="${block.canvas_height}"></canvas>
+        <div id="reach-message">Press and hold the central cross with the Apple Pencil to start the first trial.</div>
+      </div>
+    `;
+
+    const wrapper = display_element.querySelector("#reach-wrapper");
+    const canvas = display_element.querySelector("#reach-canvas");
+    const message = display_element.querySelector("#reach-message");
+    const progressFill = display_element.querySelector("#block-progress-fill");
+    const elapsedLabel = display_element.querySelector("#elapsed-time-label");
+    const remainingLabel = display_element.querySelector("#remaining-time-label");
+    const totalScoreLabel = display_element.querySelector("#total-score-label");
+    const blockScoreLabel = display_element.querySelector("#block-score-label");
+    const lastScoreLabel = display_element.querySelector("#last-score-label");
+    const ctx = canvas.getContext("2d");
+    const plugin = this;
+
+    function resolveWidthSchedule(block) {
+      if (block.block_kind === "switching") {
+        let labels = block.target_width_chunk_sequence_labels;
+        if (!labels && block.switching_block_sequence_index !== null && block.switching_block_sequence_index !== undefined) {
+          labels = getSwitchingSequenceForBlock(block.switching_block_sequence_index, block.n_switching_blocks || 1);
+        }
+        if (labels) {
+          return labels.map((label) => ({ label, width: widthForLabel(label) }));
+        }
+        return block.target_width_chunk_sequence_px.map((width) => ({ label: labelForWidth(width), width }));
+      }
+      const label = block.fixed_width_label;
+      const width = block.fixed_target_width_px !== null && block.fixed_target_width_px !== undefined
+        ? block.fixed_target_width_px
+        : widthForLabel(label);
+      return [{ label, width }];
+    }
+
+    function getElapsedMs() { return performance.now() - blockStartTime; }
+    function getRemainingMs() { return Math.max(0, blockEndTime - performance.now()); }
+
+    function getChunkIndexAtTime(t) {
+      if (block.block_kind !== "switching" || !block.chunk_duration_seconds) return 0;
+      const idx = Math.floor((t - blockStartTime) / (block.chunk_duration_seconds * 1000));
+      return Math.min(Math.max(idx, 0), widthSchedule.length - 1);
+    }
+
+    function getCurrentWidthInfo() {
+      const idx = getChunkIndexAtTime(performance.now());
+      const current = widthSchedule[idx];
+      const previous = idx > 0 ? widthSchedule[idx - 1] : null;
+      return {
+        target_width_px: current.width,
+        target_width_label: current.label,
+        target_width_chunk_index: idx + 1,
+        previous_target_width_chunk_px: previous ? previous.width : null,
+        previous_target_width_label: previous ? previous.label : null,
+        target_width_transition_label: previous ? `${previous.label || previous.width}->${current.label || current.width}` : null,
+      };
+    }
+
+    function getCurrentChunkEndMs() {
+      if (block.block_kind !== "switching" || !block.chunk_duration_seconds) return blockEndTime;
+      const idx = getChunkIndexAtTime(performance.now());
+      return Math.min(blockEndTime, blockStartTime + (idx + 1) * block.chunk_duration_seconds * 1000);
+    }
+
+    function updateTimerDisplay() {
+      const elapsed = Math.min(getElapsedMs(), blockDurationMs);
+      const remaining = Math.max(0, blockDurationMs - elapsed);
+      progressFill.style.width = `${Math.min(1, elapsed / blockDurationMs) * 100}%`;
+      elapsedLabel.textContent = formatElapsedClock(elapsed);
+      remainingLabel.textContent = formatClock(remaining);
+      if (!blockFinished) animationFrameId = requestAnimationFrame(updateTimerDisplay);
+    }
+
+    function updateScoreDisplay(lastPoints = null) {
+      if (!block.show_score_panel) return;
+      totalScoreLabel.textContent = formatPoints(GLOBAL_TOTAL_SCORE);
+      blockScoreLabel.textContent = formatPoints(blockPoints);
+      if (lastPoints !== null) {
+        lastScoreLabel.textContent = `+${formatPoints(lastPoints)}`;
+        lastScoreLabel.classList.remove("score-flash");
+        void lastScoreLabel.offsetWidth;
+        lastScoreLabel.classList.add("score-flash");
+      }
+    }
+
+    function getCanvasPosition(event) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+        y: ((event.clientY - rect.top) / rect.height) * canvas.height,
+        client_x: event.clientX,
+        client_y: event.clientY,
+      };
+    }
+
+    function drawFixation() {
+      ctx.strokeStyle = block.start_color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(center.x - 12, center.y);
+      ctx.lineTo(center.x + 12, center.y);
+      ctx.moveTo(center.x, center.y - 12);
+      ctx.lineTo(center.x, center.y + 12);
+      ctx.stroke();
+
+      ctx.strokeStyle = block.start_color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(center.x, center.y, block.start_radius_px, 0, 2 * Math.PI);
+      ctx.stroke();
+    }
+
+    function drawTarget() {
+      if (!currentTrial) return;
+      if (block.show_target_locator_ring) {
+        ctx.save();
+        ctx.strokeStyle = block.target_locator_ring_color;
+        ctx.lineWidth = block.target_locator_ring_line_width_px;
+        ctx.setLineDash(block.target_locator_ring_dash || []);
+        ctx.beginPath();
+        ctx.arc(currentTrial.target.x, currentTrial.target.y, block.target_locator_ring_radius_px, 0, 2 * Math.PI);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      ctx.fillStyle = block.target_color;
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.arc(currentTrial.target.x, currentTrial.target.y, currentTrial.target_radius_px, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    function drawTrial() {
+      ctx.clearRect(0, 0, block.canvas_width, block.canvas_height);
+      ctx.fillStyle = block.background_color;
+      ctx.fillRect(0, 0, block.canvas_width, block.canvas_height);
+      drawFixation();
+      if (phase === "movement") drawTarget();
+    }
+
+    function addSample(point, event) {
+      if (!currentTrial || currentTrial.movement_start_time === null) return;
+      currentTrial.samples.push({
+        t: performance.now() - currentTrial.movement_start_time,
+        x: point.x,
+        y: point.y,
+        pressure: event ? event.pressure : null,
+        tilt_x: event ? event.tiltX : null,
+        tilt_y: event ? event.tiltY : null,
+        twist: event ? event.twist : null,
+      });
+    }
+
+    function createNextTrial() {
+      if (blockFinished) return;
+      if (performance.now() >= blockEndTime) { finishBlock(); return; }
+
+      // The target is not selected until the Pencil press starts the movement.
+      // This is important for fixed-time chunks: if the participant waits across a
+      // chunk boundary, the target shown after the press should belong to the new chunk.
+      currentTrial = {
+        trial_created_time: performance.now(),
+        movement_start_time: null,
+        start_point: null,
+        start_event_info: null,
+        samples: [],
+      };
+
+      phase = "waiting_for_start";
+      wrapper.style.backgroundColor = block.background_color;
+      message.textContent = "Press and hold the central cross with the Apple Pencil to start the trial.";
+      drawTrial();
+    }
+
+    function startMovement(startPoint, event) {
+      if (performance.now() >= blockEndTime) { finishBlock(); return; }
+
+      const widthInfo = getCurrentWidthInfo();
+      const angleDeg = getNextDirection();
+      const target = makeTargetPosition(block.canvas_width, block.canvas_height, block.target_distance_px, angleDeg);
+
+      GLOBAL_REACHING_TRIAL_INDEX += 1;
+      trialInBlock += 1;
+      trialsStartedPerChunk[widthInfo.target_width_chunk_index - 1] += 1;
+
+      Object.assign(currentTrial, {
+        trial_in_block: trialInBlock,
+        global_reach_trial_index: GLOBAL_REACHING_TRIAL_INDEX,
+        target_width_px: widthInfo.target_width_px,
+        target_width_label: widthInfo.target_width_label,
+        target_radius_px: widthInfo.target_width_px / 2,
+        target_width_chunk_index: widthInfo.target_width_chunk_index,
+        previous_target_width_chunk_px: widthInfo.previous_target_width_chunk_px,
+        previous_target_width_label: widthInfo.previous_target_width_label,
+        target_width_transition_label: widthInfo.target_width_transition_label,
+        target_angle_deg: angleDeg,
+        target,
+        movement_chunk_end_time: getCurrentChunkEndMs(),
+      });
+
+      phase = "movement";
+      activePointerId = event.pointerId;
+      canvas.setPointerCapture(event.pointerId);
+
+      currentTrial.start_point = startPoint;
+      currentTrial.start_event_info = {
+        pointer_type: event.pointerType,
+        pointer_id: event.pointerId,
+        pressure: event.pressure,
+        tilt_x: event.tiltX,
+        tilt_y: event.tiltY,
+        twist: event.twist,
+      };
+      currentTrial.movement_start_time = performance.now();
+      currentTrial.samples = [{ t: 0, x: center.x, y: center.y, pressure: event.pressure, tilt_x: event.tiltX, tilt_y: event.tiltY, twist: event.twist }];
+      message.textContent = "Move while keeping the Pencil pressed, then lift at the target.";
+      drawTrial();
+
+      const remainingBlockMs = getRemainingMs();
+      const remainingChunkMs = Math.max(1, currentTrial.movement_chunk_end_time - performance.now());
+      const timeoutCandidates = [];
+      if (Number.isFinite(block.movement_timeout_ms) && block.movement_timeout_ms > 0) timeoutCandidates.push(block.movement_timeout_ms);
+      if (block.strict_block_timing) timeoutCandidates.push(remainingBlockMs);
+      if (block.strict_chunk_timing && block.block_kind === "switching") timeoutCandidates.push(remainingChunkMs);
+      const timeoutDelay = Math.max(1, Math.min(...timeoutCandidates));
+
+      if (Number.isFinite(timeoutDelay)) {
+        movementTimeoutHandle = setTimeout(() => {
+          const now = performance.now();
+          finishCurrentTrial({
+            endPoint: null,
+            endEvent: null,
+            timedOut: true,
+            chunkExpiredDuringTrial: block.strict_chunk_timing && block.block_kind === "switching" && now >= currentTrial.movement_chunk_end_time - 5,
+            blockExpiredDuringTrial: block.strict_block_timing && now >= blockEndTime - 5,
+            endpointEventType: "timeout",
+          });
+        }, timeoutDelay);
+      }
+    }
+
+    function finishCurrentTrial({ endPoint = null, endEvent = null, timedOut = false, chunkExpiredDuringTrial = false, blockExpiredDuringTrial = false, endpointEventType = "pointerup" } = {}) {
+      if (!currentTrial || blockFinished) return;
+      if (movementTimeoutHandle !== null) { clearTimeout(movementTimeoutHandle); movementTimeoutHandle = null; }
+
+      const endTime = performance.now();
+      const movementStart = currentTrial.movement_start_time;
+      const rtMs = movementStart === null ? null : endTime - movementStart;
+      const startLatencyMs = movementStart === null ? null : movementStart - currentTrial.trial_created_time;
+
+      let endpointError = null;
+      let relativeError = null;
+      let correct = false;
+      let releaseX = null, releaseY = null, releaseClientX = null, releaseClientY = null;
+      let releasePressure = null, releaseTiltX = null, releaseTiltY = null, releaseTwist = null;
+      let clickDistanceFromStart = null;
+
+      if (endPoint !== null) {
+        addSample(endPoint, endEvent);
+        releaseX = endPoint.x;
+        releaseY = endPoint.y;
+        releaseClientX = endPoint.client_x;
+        releaseClientY = endPoint.client_y;
+        releasePressure = endEvent ? endEvent.pressure : null;
+        releaseTiltX = endEvent ? endEvent.tiltX : null;
+        releaseTiltY = endEvent ? endEvent.tiltY : null;
+        releaseTwist = endEvent ? endEvent.twist : null;
+        endpointError = distance(endPoint, currentTrial.target);
+        relativeError = endpointError / block.target_distance_px;
+        clickDistanceFromStart = distance(endPoint, center);
+        correct = endpointError <= currentTrial.target_radius_px;
+      }
+
+      const pathStats = computePathStats(currentTrial.samples, rtMs || 0);
+      const pointsBeforeBlock = blockPoints;
+      const pointsBeforeTotal = GLOBAL_TOTAL_SCORE;
+      const pointsEarned = correct ? block.reward_points : 0;
+      blockPoints += pointsEarned;
+      GLOBAL_TOTAL_SCORE += pointsEarned;
+      if (correct) blockCorrectTrials += 1;
+      if (timedOut) blockTimedOutTrials += 1;
+      if (chunkExpiredDuringTrial) chunkExpiredTrials += 1;
+      if (blockExpiredDuringTrial) blockExpiredTrials += 1;
+      trialsCompletedPerChunk[currentTrial.target_width_chunk_index - 1] += 1;
+
+      const row = {
+        task: "reaching",
+        phase: block.phase,
+        block_kind: block.block_kind,
+        block_index: block.block_index,
+        phase_block_index: block.phase_block_index,
+        block_title: block.block_title,
+        reward_condition_index: block.reward_condition_index,
+        reward_repetition: block.reward_repetition,
+        trial_in_block: currentTrial.trial_in_block,
+        global_reach_trial_index: currentTrial.global_reach_trial_index,
+        target_type: "single_circle",
+
+        block_duration_seconds: block.block_duration_seconds,
+        chunk_duration_seconds: block.chunk_duration_seconds,
+        block_elapsed_ms_at_trial_start: currentTrial.trial_created_time - blockStartTime,
+        block_elapsed_ms_at_trial_end: endTime - blockStartTime,
+        block_time_remaining_ms_at_trial_start: Math.max(0, blockEndTime - currentTrial.trial_created_time),
+        block_time_remaining_ms_at_trial_end: Math.max(0, blockEndTime - endTime),
+        chunk_expired_during_trial: chunkExpiredDuringTrial,
+        block_expired_during_trial: blockExpiredDuringTrial,
+
+        reward_points: block.reward_points,
+        target_width_px: currentTrial.target_width_px,
+        target_width_label: currentTrial.target_width_label,
+        target_radius_px: currentTrial.target_radius_px,
+        target_width_chunk_index: currentTrial.target_width_chunk_index,
+        previous_target_width_chunk_px: currentTrial.previous_target_width_chunk_px,
+        previous_target_width_label: currentTrial.previous_target_width_label,
+        target_width_transition_label: currentTrial.target_width_transition_label,
+        target_distance_px: block.target_distance_px,
+        target_angle_deg: currentTrial.target_angle_deg,
+        target_center_x: currentTrial.target.x,
+        target_center_y: currentTrial.target.y,
+        canvas_width: block.canvas_width,
+        canvas_height: block.canvas_height,
+        start_x: center.x,
+        start_y: center.y,
+        start_radius_px: block.start_radius_px,
+
+        start_click_x: currentTrial.start_point ? currentTrial.start_point.x : null,
+        start_click_y: currentTrial.start_point ? currentTrial.start_point.y : null,
+        start_pointer_type: currentTrial.start_event_info ? currentTrial.start_event_info.pointer_type : null,
+        start_pointer_id: currentTrial.start_event_info ? currentTrial.start_event_info.pointer_id : null,
+        start_pressure: currentTrial.start_event_info ? currentTrial.start_event_info.pressure : null,
+        start_tilt_x: currentTrial.start_event_info ? currentTrial.start_event_info.tilt_x : null,
+        start_tilt_y: currentTrial.start_event_info ? currentTrial.start_event_info.tilt_y : null,
+        start_twist: currentTrial.start_event_info ? currentTrial.start_event_info.twist : null,
+
+        endpoint_event: endpointEventType,
+        pointer_type: endEvent ? endEvent.pointerType : null,
+        pointer_id: endEvent ? endEvent.pointerId : activePointerId,
+        release_x: releaseX,
+        release_y: releaseY,
+        click_x: releaseX,
+        click_y: releaseY,
+        release_client_x: releaseClientX,
+        release_client_y: releaseClientY,
+        release_pressure: releasePressure,
+        release_tilt_x: releaseTiltX,
+        release_tilt_y: releaseTiltY,
+        release_twist: releaseTwist,
+
+        correct,
+        timed_out: timedOut,
+        points_earned: pointsEarned,
+        block_score_before_trial: pointsBeforeBlock,
+        block_score_after_trial: blockPoints,
+        total_score_before_trial: pointsBeforeTotal,
+        total_score_after_trial: GLOBAL_TOTAL_SCORE,
+        endpoint_error_px: endpointError,
+        relative_error: relativeError,
+        click_distance_from_start_px: clickDistanceFromStart,
+        rt_ms: rtMs,
+        start_latency_ms: startLatencyMs,
+        total_trial_duration_ms: endTime - currentTrial.trial_created_time,
+        movement_timeout_ms: block.movement_timeout_ms,
+
+        path_length_px: pathStats.path_length_px,
+        mean_speed_px_per_s: pathStats.mean_speed_px_per_s,
+        peak_speed_px_per_s: pathStats.peak_speed_px_per_s,
+        n_pointer_samples: currentTrial.samples.length,
+        mouse_path_json: block.save_mouse_path ? JSON.stringify(currentTrial.samples) : null,
+
+        show_target_locator_ring: block.show_target_locator_ring,
+        target_locator_ring_radius_px: block.target_locator_ring_radius_px,
+        target_locator_ring_line_width_px: block.target_locator_ring_line_width_px,
+        target_locator_ring_color: block.target_locator_ring_color,
+        target_locator_ring_dash_json: JSON.stringify(block.target_locator_ring_dash || []),
+      };
+      appendDataRow(row);
+      updateScoreDisplay(pointsEarned);
+
+      let feedbackColor = block.fail_feedback_color;
+      let feedbackText = "Fail";
+      if (blockExpiredDuringTrial) { feedbackColor = block.block_end_feedback_color; feedbackText = "Block ended"; }
+      else if (chunkExpiredDuringTrial) { feedbackColor = block.chunk_end_feedback_color; feedbackText = "Size changed"; }
+      else if (timedOut) { feedbackColor = block.timeout_feedback_color; feedbackText = "Too slow"; }
+      else if (correct) { feedbackColor = block.success_feedback_color; feedbackText = block.reward_points > 0 ? `Success +${formatPoints(pointsEarned)}` : "Hit"; }
+
+      phase = "feedback";
+      wrapper.style.backgroundColor = feedbackColor;
+      ctx.clearRect(0, 0, block.canvas_width, block.canvas_height);
+      ctx.fillStyle = feedbackColor;
+      ctx.fillRect(0, 0, block.canvas_width, block.canvas_height);
+      ctx.fillStyle = "#222";
+      ctx.font = "bold 34px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(feedbackText, center.x, center.y);
+      message.textContent = "";
+
+      try {
+        if (activePointerId !== null && canvas.hasPointerCapture(activePointerId)) canvas.releasePointerCapture(activePointerId);
+      } catch (err) {}
+      activePointerId = null;
+      currentTrial = null;
+
+      feedbackTimeoutHandle = setTimeout(() => {
+        feedbackTimeoutHandle = null;
+        if (blockFinished) return;
+        if (performance.now() >= blockEndTime || blockExpiredDuringTrial) finishBlock();
+        else createNextTrial();
+      }, block.feedback_duration_ms);
+    }
+
+    function handleBlockTimeExpired() {
+      if (blockFinished) return;
+      if (phase === "movement" && block.strict_block_timing) {
+        finishCurrentTrial({ endPoint: null, endEvent: null, timedOut: true, blockExpiredDuringTrial: true, endpointEventType: "block_timeout" });
+      } else if (phase === "waiting_for_start") {
+        finishBlock();
+      }
+    }
+
+    function cleanup() {
+      canvas.removeEventListener("pointerdown", handlePointerDown);
+      canvas.removeEventListener("pointermove", handlePointerMove);
+      canvas.removeEventListener("pointerup", handlePointerUp);
+      canvas.removeEventListener("pointercancel", handlePointerCancel);
+      if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
+      if (movementTimeoutHandle !== null) clearTimeout(movementTimeoutHandle);
+      if (feedbackTimeoutHandle !== null) clearTimeout(feedbackTimeoutHandle);
+      if (blockEndTimeoutHandle !== null) clearTimeout(blockEndTimeoutHandle);
+    }
+
+    function finishBlock() {
+      if (blockFinished) return;
+      blockFinished = true;
+      cleanup();
+
+      const blockEndActual = performance.now();
+      const summary = {
+        task: "block_summary",
+        phase: block.phase,
+        block_kind: block.block_kind,
+        block_index: block.block_index,
+        phase_block_index: block.phase_block_index,
+        block_title: block.block_title,
+        reward_condition_index: block.reward_condition_index,
+        reward_repetition: block.reward_repetition,
+        reward_points: block.reward_points,
+        block_duration_seconds: block.block_duration_seconds,
+        chunk_duration_seconds: block.chunk_duration_seconds,
+        block_actual_duration_ms: blockEndActual - blockStartTime,
+        n_reaching_trials: trialInBlock,
+        n_correct_trials: blockCorrectTrials,
+        n_timed_out_trials: blockTimedOutTrials,
+        n_chunk_expired_trials: chunkExpiredTrials,
+        n_block_expired_trials: blockExpiredTrials,
+        block_points_earned: blockPoints,
+        total_score_after_block: GLOBAL_TOTAL_SCORE,
+        block_accuracy: trialInBlock > 0 ? blockCorrectTrials / trialInBlock : null,
+        target_width_schedule_json: JSON.stringify(widthSchedule),
+        trials_started_per_chunk_json: JSON.stringify(trialsStartedPerChunk),
+        trials_completed_per_chunk_json: JSON.stringify(trialsCompletedPerChunk),
+      };
+      appendDataRow(summary);
+      plugin.jsPsych.finishTrial(summary);
+    }
+
+    function handlePointerDown(event) {
+      event.preventDefault();
+      if (blockFinished) return;
+      if (!isAllowedPointer(event, block.allowed_pointer_types, block.require_primary_pointer)) {
+        message.textContent = `Please use the Apple Pencil. Detected input: ${event.pointerType || "unknown"}.`;
+        return;
+      }
+      if (phase !== "waiting_for_start") return;
+      if (performance.now() >= blockEndTime) { finishBlock(); return; }
+      const point = getCanvasPosition(event);
+      if (distance(point, center) <= block.start_radius_px) startMovement(point, event);
+      else message.textContent = "Please press inside the central start circle.";
+    }
+
+    function handlePointerMove(event) {
+      event.preventDefault();
+      if (phase !== "movement" || blockFinished || event.pointerId !== activePointerId) return;
+      addSample(getCanvasPosition(event), event);
+    }
+
+    function handlePointerUp(event) {
+      event.preventDefault();
+      if (phase !== "movement" || blockFinished || event.pointerId !== activePointerId) return;
+      const point = getCanvasPosition(event);
+      finishCurrentTrial({ endPoint: point, endEvent: event, timedOut: false, endpointEventType: "pointerup" });
+    }
+
+    function handlePointerCancel(event) {
+      event.preventDefault();
+      if (phase !== "movement" || blockFinished || event.pointerId !== activePointerId) return;
+      finishCurrentTrial({ endPoint: null, endEvent: event, timedOut: true, endpointEventType: "pointercancel" });
+    }
+
+    canvas.addEventListener("pointerdown", handlePointerDown, { passive: false });
+    canvas.addEventListener("pointermove", handlePointerMove, { passive: false });
+    canvas.addEventListener("pointerup", handlePointerUp, { passive: false });
+    canvas.addEventListener("pointercancel", handlePointerCancel, { passive: false });
+
+    updateTimerDisplay();
+    updateScoreDisplay(null);
+    createNextTrial();
+    blockEndTimeoutHandle = setTimeout(handleBlockTimeExpired, blockDurationMs);
+  }
+}
+JsPsychTimedDragLiftReachBlock.info = reachBlockInfo;
+
+/**************************************************************
+ * 6. TIMELINE CONSTRUCTION
+ **************************************************************/
+function makeContinue(title, html, buttonText, data = {}) {
+  return {
+    type: JsPsychPenContinueScreen,
+    title,
+    html,
+    button_text: buttonText,
+    allowed_pointer_types: EXPERIMENT_CONFIG.allowed_pointer_types,
+    require_primary_pointer: EXPERIMENT_CONFIG.require_primary_pointer,
+    data,
+  };
+}
+
+function makeWidthPreviewHtml(widths) {
+  return `
+    <div class="target-preview-wrapper">
+      ${widths.map((w) => `<div class="target-preview-circle" style="width:${w}px;height:${w}px;"></div>`).join("")}
+    </div>
+  `;
+}
+
+function makeWelcomeScreen(validation) {
+  const info = validation.info;
+  return makeContinue(
+    "Reaching task",
+    `
+      <p>Use the Apple Pencil only. In each trial, press and hold the central start circle, move while keeping the Pencil pressed, and lift at the target.</p>
+      <p>The task has optional calibration, fixed-size practice blocks, and then the main switching task.</p>
+      <p class="muted">Finger and mouse input are rejected.</p>
+      <div class="diagnostics">
+        innerWidth: ${info.inner_width}<br />
+        innerHeight: ${info.inner_height}<br />
+        devicePixelRatio: ${info.device_pixel_ratio}<br />
+        orientation: ${info.orientation}<br />
+        maxTouchPoints: ${info.max_touch_points}<br />
+        Required input: ${EXPERIMENT_CONFIG.allowed_pointer_types.join(", ")}
+      </div>
+    `,
+    "Start with Apple Pencil",
+    { screen_type: "welcome" }
+  );
+}
+
+function makeDeviceErrorScreen(validation) {
+  return makeContinue(
+    "Device/orientation check failed",
+    `<p>The experiment is configured for a specific iPad/Pencil setup.</p><ul>${validation.errors.map((e) => `<li>${e}</li>`).join("")}</ul><p class="muted">Rotate the iPad or adjust <code>EXPERIMENT_CONFIG.device_lock</code>.</p>`,
+    "Continue anyway with Apple Pencil",
+    { screen_type: "device_error" }
+  );
+}
+
+function makeCalibrationTimeline(startBlockIndex) {
+  const timeline = [];
+  const cfg = EXPERIMENT_CONFIG.calibration;
+  let blockIndex = startBlockIndex;
+  let phaseBlockIndex = 0;
+
+  timeline.push(makeContinue(
+    "Calibration phase",
+    `
+      <p>First, the task will briefly test several target sizes.</p>
+      <p>Move naturally and try to be both fast and accurate. The target size will stay fixed for each short block.</p>
+      <p>This phase is used only to choose three target sizes for the rest of the experiment.</p>
+      ${makeWidthPreviewHtml(cfg.candidate_widths_px)}
+    `,
+    "Start calibration",
+    { screen_type: "calibration_intro" }
+  ));
+
+  let widths = [];
+  for (let r = 0; r < cfg.repetitions_per_width; r++) widths.push(...cfg.candidate_widths_px);
+  if (cfg.randomize_width_order) widths = shuffleArray(widths);
+
+  widths.forEach((width) => {
+    blockIndex += 1;
+    phaseBlockIndex += 1;
+    timeline.push({
+      type: JsPsychTimedDragLiftReachBlock,
+      phase: "calibration",
+      block_kind: "fixed",
+      block_index: blockIndex,
+      phase_block_index: phaseBlockIndex,
+      block_title: `Calibration ${phaseBlockIndex} / ${widths.length}`,
+      canvas_width: EXPERIMENT_CONFIG.canvas_width,
+      canvas_height: EXPERIMENT_CONFIG.canvas_height,
+      block_duration_seconds: cfg.chunk_duration_seconds,
+      fixed_target_width_px: width,
+      fixed_width_label: "calibration_candidate",
+      target_distance_px: EXPERIMENT_CONFIG.target_distance_px,
+      directions_deg: EXPERIMENT_CONFIG.directions_deg,
+      randomize_direction_order_within_block: EXPERIMENT_CONFIG.randomize_direction_order_within_block,
+      allowed_pointer_types: EXPERIMENT_CONFIG.allowed_pointer_types,
+      require_primary_pointer: EXPERIMENT_CONFIG.require_primary_pointer,
+      reward_points: cfg.reward_points,
+      start_radius_px: EXPERIMENT_CONFIG.start_radius_px,
+      movement_timeout_ms: cfg.movement_timeout_ms,
+      feedback_duration_ms: EXPERIMENT_CONFIG.feedback_duration_ms,
+      strict_block_timing: cfg.strict_block_timing,
+      strict_chunk_timing: false,
+      show_score_panel: false,
+      save_mouse_path: EXPERIMENT_CONFIG.save_mouse_path,
+      background_color: EXPERIMENT_CONFIG.background_color,
+      start_color: EXPERIMENT_CONFIG.start_color,
+      target_color: EXPERIMENT_CONFIG.target_color,
+      show_target_locator_ring: EXPERIMENT_CONFIG.show_target_locator_ring,
+      target_locator_ring_radius_px: EXPERIMENT_CONFIG.target_locator_ring_radius_px,
+      target_locator_ring_line_width_px: EXPERIMENT_CONFIG.target_locator_ring_line_width_px,
+      target_locator_ring_color: EXPERIMENT_CONFIG.target_locator_ring_color,
+      target_locator_ring_dash: EXPERIMENT_CONFIG.target_locator_ring_dash,
+      success_feedback_color: EXPERIMENT_CONFIG.success_feedback_color,
+      fail_feedback_color: EXPERIMENT_CONFIG.fail_feedback_color,
+      timeout_feedback_color: EXPERIMENT_CONFIG.timeout_feedback_color,
+      block_end_feedback_color: EXPERIMENT_CONFIG.block_end_feedback_color,
+    });
+  });
+
+  timeline.push({ type: JsPsychComputeCalibration });
+  timeline.push(makeContinue(
+    "Calibration complete",
+    `
+      <p>The task will now continue with three target sizes selected for this participant.</p>
+      <p class="muted">The labels are internal; participants only see the target size itself during the task.</p>
+    `,
+    "Continue",
+    { screen_type: "calibration_complete" }
+  ));
+
+  return { timeline, nextBlockIndex: blockIndex };
+}
+
+function makeManualCalibrationTimeline() {
+  return [
+    { type: JsPsychComputeCalibration },
+    makeContinue(
+      "Manual target sizes",
+      `<p>Calibration is skipped. The task will use the manually configured target sizes.</p>${makeWidthPreviewHtml(Object.values(EXPERIMENT_CONFIG.manual_calibrated_widths_px))}`,
+      "Continue",
+      { screen_type: "manual_widths_intro" }
+    ),
+  ];
+}
+
+function makeFixedTrainingTimeline(startBlockIndex) {
+  const timeline = [];
+  const cfg = EXPERIMENT_CONFIG.fixed_size_training;
+  let blockIndex = startBlockIndex;
+  let phaseBlockIndex = 0;
+  if (!cfg.enabled) return { timeline, nextBlockIndex: blockIndex };
+
+  timeline.push(makeContinue(
+    "Fixed-size practice",
+    `
+      <p>You will now practice with each selected target size separately.</p>
+      <p>In each block the target size is fixed.</p>
+    `,
+    "Start practice",
+    { screen_type: "fixed_training_intro" }
+  ));
+
+  let labels = [];
+  for (let r = 0; r < cfg.repetitions_per_width; r++) labels.push(...WIDTH_LABEL_ORDER);
+  if (cfg.order === "random") labels = shuffleArray(labels);
+
+  labels.forEach((label) => {
+    blockIndex += 1;
+    phaseBlockIndex += 1;
+    timeline.push({
+      type: JsPsychTimedDragLiftReachBlock,
+      phase: "fixed_size_training",
+      block_kind: "fixed",
+      block_index: blockIndex,
+      phase_block_index: phaseBlockIndex,
+      block_title: `Practice ${phaseBlockIndex} / ${labels.length}`,
+      canvas_width: EXPERIMENT_CONFIG.canvas_width,
+      canvas_height: EXPERIMENT_CONFIG.canvas_height,
+      block_duration_seconds: cfg.block_duration_seconds,
+      fixed_width_label: label,
+      target_distance_px: EXPERIMENT_CONFIG.target_distance_px,
+      directions_deg: EXPERIMENT_CONFIG.directions_deg,
+      randomize_direction_order_within_block: EXPERIMENT_CONFIG.randomize_direction_order_within_block,
+      allowed_pointer_types: EXPERIMENT_CONFIG.allowed_pointer_types,
+      require_primary_pointer: EXPERIMENT_CONFIG.require_primary_pointer,
+      reward_points: cfg.reward_points,
+      start_radius_px: EXPERIMENT_CONFIG.start_radius_px,
+      movement_timeout_ms: EXPERIMENT_CONFIG.movement_timeout_ms,
+      feedback_duration_ms: EXPERIMENT_CONFIG.feedback_duration_ms,
+      strict_block_timing: cfg.strict_block_timing,
+      strict_chunk_timing: false,
+      show_score_panel: true,
+      save_mouse_path: EXPERIMENT_CONFIG.save_mouse_path,
+      background_color: EXPERIMENT_CONFIG.background_color,
+      start_color: EXPERIMENT_CONFIG.start_color,
+      target_color: EXPERIMENT_CONFIG.target_color,
+      show_target_locator_ring: EXPERIMENT_CONFIG.show_target_locator_ring,
+      target_locator_ring_radius_px: EXPERIMENT_CONFIG.target_locator_ring_radius_px,
+      target_locator_ring_line_width_px: EXPERIMENT_CONFIG.target_locator_ring_line_width_px,
+      target_locator_ring_color: EXPERIMENT_CONFIG.target_locator_ring_color,
+      target_locator_ring_dash: EXPERIMENT_CONFIG.target_locator_ring_dash,
+      success_feedback_color: EXPERIMENT_CONFIG.success_feedback_color,
+      fail_feedback_color: EXPERIMENT_CONFIG.fail_feedback_color,
+      timeout_feedback_color: EXPERIMENT_CONFIG.timeout_feedback_color,
+      block_end_feedback_color: EXPERIMENT_CONFIG.block_end_feedback_color,
+    });
+  });
+
+  return { timeline, nextBlockIndex: blockIndex };
+}
+
+function makeSwitchingTimeline(startBlockIndex) {
+  const timeline = [];
+  const cfg = EXPERIMENT_CONFIG.switching_task;
+  let blockIndex = startBlockIndex;
+  let phaseBlockIndex = 0;
+
+  timeline.push(makeContinue(
+    "Main switching task",
+    `
+      <p>The main task now begins. Blocks differ in reward magnitude.</p>
+      <p>Within each block, the target size changes every <strong>${cfg.chunk_duration_seconds} seconds</strong>. The small ticks on the progress bar indicate these transition times.</p>
+      <p>Use the same press-move-lift movement: press the center, move while pressed, and lift at the target.</p>
+    `,
+    "Start main task",
+    { screen_type: "switching_intro" }
+  ));
+
+  let blocks = [];
+  cfg.reward_values.forEach((reward, rewardIndex) => {
+    for (let rep = 1; rep <= cfg.blocks_per_reward; rep++) {
+      blocks.push({ reward_points: reward, reward_condition_index: rewardIndex + 1, reward_repetition: rep });
+    }
+  });
+  if (cfg.randomize_block_order) blocks = shuffleArray(blocks);
+
+  blocks.forEach((condition, sequenceIndex) => {
+    blockIndex += 1;
+    phaseBlockIndex += 1;
+    timeline.push({
+      type: JsPsychTimedDragLiftReachBlock,
+      phase: "switching_task",
+      block_kind: "switching",
+      block_index: blockIndex,
+      phase_block_index: phaseBlockIndex,
+      block_title: `Main block ${phaseBlockIndex} / ${blocks.length}`,
+      canvas_width: EXPERIMENT_CONFIG.canvas_width,
+      canvas_height: EXPERIMENT_CONFIG.canvas_height,
+      block_duration_seconds: cfg.block_duration_seconds,
+      chunk_duration_seconds: cfg.chunk_duration_seconds,
+      switching_block_sequence_index: sequenceIndex,
+      n_switching_blocks: blocks.length,
+      target_distance_px: EXPERIMENT_CONFIG.target_distance_px,
+      directions_deg: EXPERIMENT_CONFIG.directions_deg,
+      randomize_direction_order_within_block: EXPERIMENT_CONFIG.randomize_direction_order_within_block,
+      allowed_pointer_types: EXPERIMENT_CONFIG.allowed_pointer_types,
+      require_primary_pointer: EXPERIMENT_CONFIG.require_primary_pointer,
+      reward_points: condition.reward_points,
+      reward_condition_index: condition.reward_condition_index,
+      reward_repetition: condition.reward_repetition,
+      start_radius_px: EXPERIMENT_CONFIG.start_radius_px,
+      movement_timeout_ms: EXPERIMENT_CONFIG.movement_timeout_ms,
+      feedback_duration_ms: EXPERIMENT_CONFIG.feedback_duration_ms,
+      strict_block_timing: cfg.strict_block_timing,
+      strict_chunk_timing: cfg.strict_chunk_timing,
+      show_score_panel: true,
+      save_mouse_path: EXPERIMENT_CONFIG.save_mouse_path,
+      background_color: EXPERIMENT_CONFIG.background_color,
+      start_color: EXPERIMENT_CONFIG.start_color,
+      target_color: EXPERIMENT_CONFIG.target_color,
+      show_target_locator_ring: EXPERIMENT_CONFIG.show_target_locator_ring,
+      target_locator_ring_radius_px: EXPERIMENT_CONFIG.target_locator_ring_radius_px,
+      target_locator_ring_line_width_px: EXPERIMENT_CONFIG.target_locator_ring_line_width_px,
+      target_locator_ring_color: EXPERIMENT_CONFIG.target_locator_ring_color,
+      target_locator_ring_dash: EXPERIMENT_CONFIG.target_locator_ring_dash,
+      success_feedback_color: EXPERIMENT_CONFIG.success_feedback_color,
+      fail_feedback_color: EXPERIMENT_CONFIG.fail_feedback_color,
+      timeout_feedback_color: EXPERIMENT_CONFIG.timeout_feedback_color,
+      chunk_end_feedback_color: EXPERIMENT_CONFIG.chunk_end_feedback_color,
+      block_end_feedback_color: EXPERIMENT_CONFIG.block_end_feedback_color,
+    });
+  });
+
+  return { timeline, nextBlockIndex: blockIndex };
+}
+
+function buildTimeline(config) {
+  const timeline = [];
+  const validation = validateDeviceLock(config);
+  if (!validation.ok) timeline.push(makeDeviceErrorScreen(validation));
+  timeline.push(makeWelcomeScreen(validation));
+
+  let blockIndex = 0;
+  if (config.use_calibration_phase) {
+    const cal = makeCalibrationTimeline(blockIndex);
+    timeline.push(...cal.timeline);
+    blockIndex = cal.nextBlockIndex;
+  } else {
+    timeline.push(...makeManualCalibrationTimeline());
+  }
+
+  const train = makeFixedTrainingTimeline(blockIndex);
+  timeline.push(...train.timeline);
+  blockIndex = train.nextBlockIndex;
+
+  const switching = makeSwitchingTimeline(blockIndex);
+  timeline.push(...switching.timeline);
+
+  return timeline;
+}
+
+/**************************************************************
+ * 7. END SCREEN
+ **************************************************************/
+function showDownloadScreen() {
+  const reachingRows = GLOBAL_DATA_ROWS.filter((row) => row.task === "reaching");
+  const mainRows = reachingRows.filter((row) => row.phase === "switching_task");
+
+  document.body.innerHTML = `
+    <div class="download-screen">
+      <h1>Experiment complete</h1>
+      <p>Total reaching trials: <strong>${reachingRows.length}</strong></p>
+      <p>Main-task reaching trials: <strong>${mainRows.length}</strong></p>
+      <p>Total score: <strong>${formatPoints(GLOBAL_TOTAL_SCORE)}</strong></p>
+      <p>Participant ID: <strong>${EXPERIMENT_CONFIG.participant_id}</strong></p>
+      <p>Selected target widths:</p>
+      <p>
+        Accuracy/small: <strong>${GLOBAL_SELECTED_WIDTHS.accuracy_small}px</strong> &nbsp; | &nbsp;
+        Balanced/middle: <strong>${GLOBAL_SELECTED_WIDTHS.balanced_middle}px</strong> &nbsp; | &nbsp;
+        Speed/large: <strong>${GLOBAL_SELECTED_WIDTHS.speed_large}px</strong>
+      </p>
+      <div class="download-buttons">
+        <button onclick="downloadReachData('csv', 'all_rows')">CSV: all rows</button>
+        <button onclick="downloadReachData('json', 'all_rows')">JSON: all rows</button>
+        <button class="secondary" onclick="downloadReachData('csv', 'reaching_trials_only')">CSV: reaching only</button>
+        <button class="secondary" onclick="downloadReachData('json', 'reaching_trials_only')">JSON: reaching only</button>
+        <button class="secondary" onclick="downloadReachData('csv', 'main_switching_only')">CSV: main task only</button>
+        <button class="secondary" onclick="downloadReachData('json', 'main_switching_only')">JSON: main task only</button>
+      </div>
+    </div>
+  `;
+}
+
+/**************************************************************
+ * 8. RUN EXPERIMENT
+ **************************************************************/
+const timeline = buildTimeline(EXPERIMENT_CONFIG);
+jsPsych.run(timeline);
+</script>
+</html>
