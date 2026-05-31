@@ -262,16 +262,16 @@ const EXPERIMENT_CONFIG = {
   use_calibration_phase: true,
 
   manual_calibrated_widths_px: {
-    speed_large: 64,
+    speed_large: 110,
     balanced_middle: 60,
     accuracy_small: 36,
   },
 
   calibration: {
-    candidate_widths_px: [14, 16, 18, 24, 32, 48, 64],
-    prefixed_large_width_px: 64,
+    candidate_widths_px: [10, 14, 18, 24, 32, 48, 64, 80],
+    prefixed_large_width_px: 80,
     chunk_duration_seconds: 20,
-    repetitions_per_width: 1,
+    repetitions_per_width: 2,
     randomize_width_order: true,
     reward_points: 0,
     movement_timeout_ms: null,
@@ -285,7 +285,7 @@ const EXPERIMENT_CONFIG = {
   fixed_size_training: {
     enabled: true,
     block_duration_seconds: 45,
-    repetitions_per_width: 2,
+    repetitions_per_width: 1,
     order: "random",
     reward_points: 1,
     strict_block_timing: true,
@@ -302,12 +302,15 @@ const EXPERIMENT_CONFIG = {
     strict_block_timing: true,
   },
 
-  // directions_deg: [0, 45, 90, 135, 180, 225, 270, 315],
   directions_deg: [90, 270],
   randomize_direction_order_within_block: true,
 
   movement_timeout_ms: 4000,
-  feedback_duration_ms: 350,
+  feedback_duration_ms: 300,
+
+  // If true, show an Apple-Pencil continue screen before each timed block.
+  // This creates a real pause/break between consecutive blocks.
+  show_inter_block_screens: true,
 
   save_mouse_path: true,
   filename_prefix: "reaching_drag_lift_optional_calibration",
@@ -1555,6 +1558,75 @@ function makeWidthPreviewHtml(widths) {
   `;
 }
 
+function maybeMakeBlockStartScreen(title, html, buttonText, data = {}) {
+  if (!EXPERIMENT_CONFIG.show_inter_block_screens) return null;
+  return makeContinue(title, html, buttonText, data);
+}
+
+function pushIfNotNull(array, maybeTrial) {
+  if (maybeTrial !== null && maybeTrial !== undefined) array.push(maybeTrial);
+}
+
+function makeCalibrationBlockStartScreen(width, phaseBlockIndex, totalBlocks, durationSeconds) {
+  return maybeMakeBlockStartScreen(
+    `Calibration block ${phaseBlockIndex} / ${totalBlocks}`,
+    `
+      <p>Take a short pause. The next calibration block has a fixed target size.</p>
+      <p>Target width: <strong>${width}px</strong>. Duration: <strong>${durationSeconds} seconds</strong>.</p>
+      ${makeWidthPreviewHtml([width])}
+      <p class="muted">Tap the button with the Apple Pencil when ready.</p>
+    `,
+    "Start calibration block",
+    {
+      screen_type: "inter_block_start",
+      upcoming_phase: "calibration",
+      upcoming_phase_block_index: phaseBlockIndex,
+      upcoming_target_width_px: width,
+    }
+  );
+}
+
+function makeFixedTrainingBlockStartScreen(label, width, phaseBlockIndex, totalBlocks, durationSeconds) {
+  return maybeMakeBlockStartScreen(
+    `Practice block ${phaseBlockIndex} / ${totalBlocks}`,
+    `
+      <p>Take a short pause. In the next practice block, the target size is fixed.</p>
+      <p>Duration: <strong>${durationSeconds} seconds</strong>.</p>
+      ${makeWidthPreviewHtml([width])}
+      <p class="muted">Internal size label: ${label}. Tap the button with the Apple Pencil when ready.</p>
+    `,
+    "Start practice block",
+    {
+      screen_type: "inter_block_start",
+      upcoming_phase: "fixed_size_training",
+      upcoming_phase_block_index: phaseBlockIndex,
+      upcoming_width_label: label,
+      upcoming_target_width_px: width,
+    }
+  );
+}
+
+function makeSwitchingBlockStartScreen(condition, phaseBlockIndex, totalBlocks, cfg) {
+  return maybeMakeBlockStartScreen(
+    `Main block ${phaseBlockIndex} / ${totalBlocks}`,
+    `
+      <p>Take a short pause. The next main-task block has reward magnitude:</p>
+      <p class="condition-number">${condition.reward_points}</p>
+      <p>Target size will change every <strong>${cfg.chunk_duration_seconds} seconds</strong>.</p>
+      <p class="muted">Tap the button with the Apple Pencil when ready.</p>
+    `,
+    "Start main block",
+    {
+      screen_type: "inter_block_start",
+      upcoming_phase: "switching_task",
+      upcoming_phase_block_index: phaseBlockIndex,
+      upcoming_reward_points: condition.reward_points,
+      upcoming_reward_condition_index: condition.reward_condition_index,
+      upcoming_reward_repetition: condition.reward_repetition,
+    }
+  );
+}
+
 function makeWelcomeScreen(validation) {
   const info = validation.info;
   return makeContinue(
@@ -1611,6 +1683,10 @@ function makeCalibrationTimeline(startBlockIndex) {
   widths.forEach((width) => {
     blockIndex += 1;
     phaseBlockIndex += 1;
+    pushIfNotNull(
+      timeline,
+      makeCalibrationBlockStartScreen(width, phaseBlockIndex, widths.length, cfg.chunk_duration_seconds)
+    );
     timeline.push({
       type: JsPsychTimedDragLiftReachBlock,
       phase: "calibration",
@@ -1701,6 +1777,24 @@ function makeFixedTrainingTimeline(startBlockIndex) {
   labels.forEach((label) => {
     blockIndex += 1;
     phaseBlockIndex += 1;
+    pushIfNotNull(
+      timeline,
+      maybeMakeBlockStartScreen(
+        `Practice block ${phaseBlockIndex} / ${labels.length}`,
+        `
+          <p>Take a short pause. In the next practice block, the target size is fixed.</p>
+          <p>Duration: <strong>${cfg.block_duration_seconds} seconds</strong>.</p>
+          <p class="muted">Tap the button with the Apple Pencil when ready.</p>
+        `,
+        "Start practice block",
+        {
+          screen_type: "inter_block_start",
+          upcoming_phase: "fixed_size_training",
+          upcoming_phase_block_index: phaseBlockIndex,
+          upcoming_width_label: label,
+        }
+      )
+    );
     timeline.push({
       type: JsPsychTimedDragLiftReachBlock,
       phase: "fixed_size_training",
@@ -1771,6 +1865,10 @@ function makeSwitchingTimeline(startBlockIndex) {
   blocks.forEach((condition, sequenceIndex) => {
     blockIndex += 1;
     phaseBlockIndex += 1;
+    pushIfNotNull(
+      timeline,
+      makeSwitchingBlockStartScreen(condition, phaseBlockIndex, blocks.length, cfg)
+    );
     timeline.push({
       type: JsPsychTimedDragLiftReachBlock,
       phase: "switching_task",
