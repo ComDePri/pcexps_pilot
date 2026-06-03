@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Circular Steering Task</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      background: #f3f3f3;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #222;
+    }
+
+    button, a {
+      font: inherit;
+    }
+
+    .screen {
+      min-height: 100vh;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+    }
+
+    .card {
+      max-width: 860px;
+      width: min(860px, calc(100vw - 56px));
+      background: white;
+      border-radius: 20px;
+      padding: 32px 38px;
+      box-shadow: 0 12px 36px rgba(0,0,0,0.10);
+      line-height: 1.55;
+    }
+
+    .card h1, .card h2 {
+      margin-top: 0;
+      text-align: center;
+    }
+
+    .muted {
+      color: #666;
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      justify-content: center;
+      margin-top: 28px;
+    }
+
+    .pen-button {
+      border: none;
+      border-radius: 14px;
+      background: #2f6fed;
+      color: white;
+      padding: 15px 22px;
+      min-width: 240px;
+      font-weight: 750;
+      cursor: pointer;
+      box-shadow: 0 8px 18px rgba(47,111,237,0.22);
+    }
+
+    .pen-button.secondary {
+      background: #444;
+      box-shadow: 0 8px 18px rgba(0,0,0,0.16);
+    }
+
+    .warning {
+      margin-top: 18px;
+      padding: 12px 14px;
+      background: #fff3cd;
+      border: 1px solid #ffe08a;
+      border-radius: 12px;
+      color: #5f4500;
+    }
+
+    #task-screen {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      box-sizing: border-box;
+      padding: 12px;
+      background: #f5f5f5;
+    }
+
+    #panel {
+      width: min(920px, calc(100vw - 32px));
+      background: white;
+      border: 1px solid #d8d8d8;
+      border-radius: 16px;
+      padding: 12px 16px;
+      box-sizing: border-box;
+      box-shadow: 0 8px 22px rgba(0,0,0,0.07);
+    }
+
+    .panel-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      font-size: 15px;
+      margin-bottom: 8px;
+    }
+
+    .panel-row strong {
+      font-weight: 800;
+    }
+
+    .score-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      font-size: 15px;
+      margin-bottom: 8px;
+    }
+
+    .score-row span {
+      white-space: nowrap;
+    }
+
+    #progress-track {
+      position: relative;
+      height: 15px;
+      width: 100%;
+      background: #eeeeee;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    #progress-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      width: 0%;
+      background: #2f6fed;
+      border-radius: 999px;
+      transition: width 70ms linear;
+    }
+
+    .progress-tick {
+      position: absolute;
+      top: 0;
+      width: 2px;
+      height: 100%;
+      background: rgba(0,0,0,0.42);
+      z-index: 3;
+    }
+
+    #steering-canvas {
+      width: min(920px, calc(100vw - 32px));
+      height: min(720px, calc(100vh - 160px));
+      max-height: 720px;
+      background: white;
+      border: 1px solid #cfcfcf;
+      border-radius: 18px;
+      box-shadow: 0 10px 28px rgba(0,0,0,0.08);
+      touch-action: none;
+      cursor: crosshair;
+    }
+
+    #message {
+      min-height: 26px;
+      font-size: 18px;
+      text-align: center;
+      color: #333;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .summary-box {
+      background: #f7f7f7;
+      border: 1px solid #e5e5e5;
+      border-radius: 14px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .summary-box .value {
+      display: block;
+      font-size: 28px;
+      font-weight: 850;
+      margin-top: 4px;
+    }
+
+    code {
+      background: #f0f0f0;
+      border-radius: 6px;
+      padding: 2px 5px;
+    }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/**************************************************************
+ * 1. EASY-TO-EDIT EXPERIMENT CONFIGURATION
+ **************************************************************/
+const EXPERIMENT_CONFIG = {
+  experiment_name: "circular_steering_buzz_wire_v1",
+  participant_id:
+    new URLSearchParams(window.location.search).get("participant") ||
+    `anon_${Math.random().toString(36).slice(2, 10)}`,
+
+  // Input. For actual iPad + Apple Pencil use, keep ["pen"].
+  // For desktop debugging, set allow_mouse_for_debug to true.
+  allowed_pointer_types: ["pen"],
+  allow_mouse_for_debug: true,
+
+  // Canvas and circular track geometry, in CSS pixels.
+  canvas_width: 920,
+  canvas_height: 720,
+  track_radius_px: 235,
+  cursor_radius_px: 8,
+  start_zone_radius_px: 28,
+
+  // Task structure.
+  reward_values: [1, 5, 10],
+  blocks_per_reward: 2,
+  block_duration_seconds: 60,
+  chunk_duration_seconds: 10,
+
+  // Difficulty = track width. These are used as time chunks within each block.
+  // Narrower = harder, wider = easier.
+  track_widths_px: [36, 60, 92],
+  balance_track_width_transitions_across_blocks: true,
+  randomize_block_order: true,
+
+  // Direction and scoring.
+  movement_direction: "clockwise", // "clockwise" or "counterclockwise"
+  score_distance_unit_px: 100,      // reward points are awarded per this much forward distance
+  collision_pause_ms: 500,          // no score during this pause after wall contact
+  max_forward_progress_px_per_sample: 80, // protects against jumps/artifacts
+
+  // Visuals.
+  track_fill_color: "rgba(47, 111, 237, 0.16)",
+  track_boundary_color: "rgba(0, 0, 0, 0.55)",
+  track_centerline_color: "rgba(47, 111, 237, 0.24)",
+  collision_track_fill_color: "rgba(235, 70, 70, 0.22)",
+  cursor_color: "#2f6fed",
+  cursor_outside_color: "#d93025",
+  start_zone_color: "rgba(26, 160, 85, 0.35)",
+  start_zone_outline_color: "rgba(26, 160, 85, 0.95)",
+
+  // Data.
+  save_every_pointer_sample: true,
+  filename_prefix: "circular_steering_buzz_wire",
+};
+
+/**************************************************************
+ * 2. GLOBAL STATE
+ **************************************************************/
+const app = document.getElementById("app");
+
+const DATA = {
+  samples: [],
+  events: [],
+  blocks: [],
+  config: EXPERIMENT_CONFIG,
+};
+
+const SESSION = {
+  experiment_start_time: performance.now(),
+  total_score: 0,
+  current_block_index: -1,
+};
+
+let BLOCKS = [];
+let WIDTH_SCHEDULES = [];
+let ACTIVE = null;
+
+/**************************************************************
+ * 3. HELPER FUNCTIONS
+ **************************************************************/
+function shuffleArray(array) {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function nowRelativeMs() {
+  return performance.now() - SESSION.experiment_start_time;
+}
+
+function formatPoints(value) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
+function formatClock(ms) {
+  const safeMs = Math.max(0, ms);
+  const totalSeconds = Math.ceil(safeMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function formatElapsedClock(ms) {
+  const safeMs = Math.max(0, ms);
+  const totalSeconds = Math.floor(safeMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function sanitizeFilenamePart(text) {
+  return String(text).replace(/[^a-zA-Z0-9_-]/g, "_");
+}
+
+function timestampForFilename() {
+  return new Date().toISOString().replace(/[:.]/g, "-");
+}
+
+function pointerAllowed(event) {
+  if (EXPERIMENT_CONFIG.allowed_pointer_types.includes(event.pointerType)) return true;
+  if (EXPERIMENT_CONFIG.allow_mouse_for_debug && event.pointerType === "mouse") return true;
+  return false;
+}
+
+function pointerAllowedDescription() {
+  const allowed = [...EXPERIMENT_CONFIG.allowed_pointer_types];
+  if (EXPERIMENT_CONFIG.allow_mouse_for_debug) allowed.push("mouse/debug");
+  return allowed.join(", ");
+}
+
+function showPointerWarning(container, event) {
+  const existing = container.querySelector(".warning");
+  if (existing) existing.remove();
+  const warning = document.createElement("div");
+  warning.className = "warning";
+  warning.textContent = `Input type "${event.pointerType}" is not allowed. Please use: ${pointerAllowedDescription()}.`;
+  container.appendChild(warning);
+}
+
+function makePenButton(label, onActivate, className = "") {
+  const button = document.createElement("button");
+  button.className = `pen-button ${className}`.trim();
+  button.textContent = label;
+  button.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    if (!pointerAllowed(event)) {
+      showPointerWarning(button.closest(".card") || app, event);
+      return;
+    }
+    onActivate(event);
+  });
+  return button;
+}
+
+function distance(a, b) {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function normalizeAngle(theta) {
+  const twoPi = Math.PI * 2;
+  let out = theta % twoPi;
+  if (out < 0) out += twoPi;
+  return out;
+}
+
+function signedSmallestAngleDelta(fromTheta, toTheta) {
+  let delta = normalizeAngle(toTheta) - normalizeAngle(fromTheta);
+  if (delta > Math.PI) delta -= Math.PI * 2;
+  if (delta < -Math.PI) delta += Math.PI * 2;
+  return delta;
+}
+
+function forwardDeltaTheta(previousTheta, currentTheta, direction) {
+  const signed = signedSmallestAngleDelta(previousTheta, currentTheta);
+  if (direction === "clockwise") {
+    // In screen coordinates, with y increasing downward, clockwise movement increases theta.
+    return Math.max(0, signed);
+  }
+  return Math.max(0, -signed);
+}
+
+function polarFromCanvasPosition(pos, center) {
+  const dx = pos.x - center.x;
+  const dy = pos.y - center.y;
+  const r = Math.sqrt(dx * dx + dy * dy);
+  const theta = normalizeAngle(Math.atan2(dy, dx));
+  return { r, theta };
+}
+
+function pointOnTrack(center, radius, theta) {
+  return {
+    x: center.x + radius * Math.cos(theta),
+    y: center.y + radius * Math.sin(theta),
+  };
+}
+
+function getCanvasPositionFromPointer(event, canvas) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+    y: ((event.clientY - rect.top) / rect.height) * canvas.height,
+    client_x: event.clientX,
+    client_y: event.clientY,
+  };
+}
+
+function getPointerDetails(event) {
+  return {
+    pointer_id: event.pointerId,
+    pointer_type: event.pointerType,
+    pressure: event.pressure ?? null,
+    tilt_x: event.tiltX ?? null,
+    tilt_y: event.tiltY ?? null,
+    twist: event.twist ?? null,
+    width: event.width ?? null,
+    height: event.height ?? null,
+  };
+}
+
+function addEvent(type, details = {}) {
+  DATA.events.push({
+    participant_id: EXPERIMENT_CONFIG.participant_id,
+    experiment_name: EXPERIMENT_CONFIG.experiment_name,
+    event_type: type,
+    time_ms: nowRelativeMs(),
+    ...details,
+  });
+}
+
+function median(values) {
+  const arr = values.filter((x) => Number.isFinite(x)).sort((a, b) => a - b);
+  if (arr.length === 0) return null;
+  const mid = Math.floor(arr.length / 2);
+  if (arr.length % 2 === 1) return arr[mid];
+  return (arr[mid - 1] + arr[mid]) / 2;
+}
+
+/**************************************************************
+ * 4. BLOCK AND WIDTH-SCHEDULE CREATION
+ **************************************************************/
+function makeBlockSchedule(config) {
+  const blocks = [];
+  let rewardConditionIndex = 0;
+
+  config.reward_values.forEach((reward) => {
+    rewardConditionIndex += 1;
+    for (let rep = 1; rep <= config.blocks_per_reward; rep++) {
+      blocks.push({
+        reward_condition_index: rewardConditionIndex,
+        reward_repetition: rep,
+        reward_points: reward,
+      });
+    }
+  });
+
+  return config.randomize_block_order ? shuffleArray(blocks) : blocks;
+}
+
+function makeEulerianCycle(values) {
+  const nodes = shuffleArray(values);
+  const adjacency = new Map();
+
+  nodes.forEach((from) => {
+    adjacency.set(String(from), shuffleArray(nodes.filter((to) => to !== from)));
+  });
+
+  const stack = [nodes[0]];
+  const path = [];
+
+  while (stack.length > 0) {
+    const current = stack[stack.length - 1];
+    const edges = adjacency.get(String(current));
+    if (edges && edges.length > 0) {
+      stack.push(edges.pop());
+    } else {
+      path.push(stack.pop());
+    }
+  }
+
+  return path.reverse();
+}
+
+function makeWidthSchedules(config, nBlocks) {
+  const chunksPerBlock = Math.ceil(config.block_duration_seconds / config.chunk_duration_seconds);
+
+  if (config.track_widths_px.length <= 1) {
+    return Array.from({ length: nBlocks }, () =>
+      Array.from({ length: chunksPerBlock }, (_, i) => ({
+        chunk_index: i + 1,
+        track_width_px: config.track_widths_px[0],
+        previous_track_width_px: null,
+        transition_label: null,
+        chunk_start_ms: i * config.chunk_duration_seconds * 1000,
+        chunk_end_ms: Math.min((i + 1) * config.chunk_duration_seconds * 1000, config.block_duration_seconds * 1000),
+      }))
+    );
+  }
+
+  if (!config.balance_track_width_transitions_across_blocks) {
+    return Array.from({ length: nBlocks }, () => {
+      const chunks = [];
+      let previous = null;
+      for (let i = 0; i < chunksPerBlock; i++) {
+        const candidates = config.track_widths_px.filter((w) => w !== previous);
+        const width = shuffleArray(candidates)[0];
+        chunks.push({
+          chunk_index: i + 1,
+          track_width_px: width,
+          previous_track_width_px: previous,
+          transition_label: previous === null ? null : `${previous}->${width}`,
+          chunk_start_ms: i * config.chunk_duration_seconds * 1000,
+          chunk_end_ms: Math.min((i + 1) * config.chunk_duration_seconds * 1000, config.block_duration_seconds * 1000),
+        });
+        previous = width;
+      }
+      return chunks;
+    });
+  }
+
+  const transitionsPerBlock = Math.max(0, chunksPerBlock - 1);
+  const totalTransitions = nBlocks * transitionsPerBlock;
+  const nWidths = config.track_widths_px.length;
+  const transitionTypes = nWidths * (nWidths - 1);
+  const cycle = makeEulerianCycle(config.track_widths_px);
+  const transitionsPerCycle = cycle.length - 1;
+
+  if (totalTransitions % transitionTypes !== 0) {
+    console.warn(
+      `Exact width-transition balancing is not possible: ${totalTransitions} transitions for ${transitionTypes} ordered non-repeating transition types. Counts will be approximately balanced.`
+    );
+  }
+
+  const longSequence = [cycle[0]];
+  for (let i = 0; i < totalTransitions; i++) {
+    longSequence.push(cycle[(i % transitionsPerCycle) + 1]);
+  }
+
+  const schedules = [];
+  let offset = 0;
+  for (let blockIndex = 0; blockIndex < nBlocks; blockIndex++) {
+    const widths = longSequence.slice(offset, offset + chunksPerBlock);
+    const chunks = widths.map((width, i) => {
+      const previous = i === 0 ? null : widths[i - 1];
+      return {
+        chunk_index: i + 1,
+        track_width_px: width,
+        previous_track_width_px: previous,
+        transition_label: previous === null ? null : `${previous}->${width}`,
+        chunk_start_ms: i * config.chunk_duration_seconds * 1000,
+        chunk_end_ms: Math.min((i + 1) * config.chunk_duration_seconds * 1000, config.block_duration_seconds * 1000),
+      };
+    });
+    schedules.push(chunks);
+    offset += transitionsPerBlock;
+  }
+
+  return schedules;
+}
+
+function getChunkForElapsed(blockState, elapsedMs) {
+  const idx = Math.min(
+    blockState.width_schedule.length - 1,
+    Math.max(0, Math.floor(elapsedMs / (EXPERIMENT_CONFIG.chunk_duration_seconds * 1000)))
+  );
+  return blockState.width_schedule[idx];
+}
+
+/**************************************************************
+ * 5. SCREENS
+ **************************************************************/
+function showWelcomeScreen() {
+  app.innerHTML = "";
+  const screen = document.createElement("div");
+  screen.className = "screen";
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `
+    <h1>Circular Steering Task</h1>
+    <p>
+      Keep the Pencil pressed and move the dot around the circular track.
+      Earn points for moving forward along the track. If you touch the wall,
+      scoring pauses briefly.
+    </p>
+    <p>
+      The reward value changes between blocks. The track width changes every
+      <strong>${EXPERIMENT_CONFIG.chunk_duration_seconds} seconds</strong> within a block.
+      Tick marks on the progress bar indicate these transitions.
+    </p>
+    <p>
+      At the start of each block, press the green start zone on the right side
+      of the track and keep moving ${EXPERIMENT_CONFIG.movement_direction}.
+    </p>
+    <p class="muted">
+      Allowed input: <code>${pointerAllowedDescription()}</code>.<br>
+      Participant ID: <code>${EXPERIMENT_CONFIG.participant_id}</code>
+    </p>
+  `;
+  const row = document.createElement("div");
+  row.className = "button-row";
+  row.appendChild(makePenButton("Start experiment", () => startNextBlock()));
+  card.appendChild(row);
+  screen.appendChild(card);
+  app.appendChild(screen);
+}
+
+function showBlockIntroScreen(blockIndex) {
+  const block = BLOCKS[blockIndex];
+  const schedule = WIDTH_SCHEDULES[blockIndex];
+  const widthSequence = schedule.map((c) => c.track_width_px).join(" → ");
+
+  app.innerHTML = "";
+  const screen = document.createElement("div");
+  screen.className = "screen";
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `
+    <h2>Block ${blockIndex + 1} of ${BLOCKS.length}</h2>
+    <div class="summary-grid">
+      <div class="summary-box">Reward per ${EXPERIMENT_CONFIG.score_distance_unit_px}px<span class="value">${block.reward_points}</span></div>
+      <div class="summary-box">Block duration<span class="value">${EXPERIMENT_CONFIG.block_duration_seconds}s</span></div>
+      <div class="summary-box">Track changes every<span class="value">${EXPERIMENT_CONFIG.chunk_duration_seconds}s</span></div>
+    </div>
+    <p><strong>Width sequence:</strong> ${widthSequence} px</p>
+    <p class="muted">
+      Press the green start zone with the Pencil when you are ready.
+      If you lift the Pencil during the block, place it back inside the track to continue.
+    </p>
+  `;
+  const row = document.createElement("div");
+  row.className = "button-row";
+  row.appendChild(makePenButton("Start this block", () => startBlock(blockIndex)));
+  card.appendChild(row);
+  screen.appendChild(card);
+  app.appendChild(screen);
+}
+
+function showBlockSummaryScreen(summary) {
+  app.innerHTML = "";
+  const screen = document.createElement("div");
+  screen.className = "screen";
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `
+    <h2>Block ${summary.block_index + 1} complete</h2>
+    <div class="summary-grid">
+      <div class="summary-box">Block score<span class="value">${formatPoints(summary.block_score)}</span></div>
+      <div class="summary-box">Total score<span class="value">${formatPoints(summary.total_score_after_block)}</span></div>
+      <div class="summary-box">Forward distance<span class="value">${Math.round(summary.forward_distance_px)}px</span></div>
+      <div class="summary-box">Wall contacts<span class="value">${summary.n_collisions}</span></div>
+    </div>
+    <p class="muted">Tap continue with the Pencil to proceed.</p>
+  `;
+  const row = document.createElement("div");
+  row.className = "button-row";
+  row.appendChild(makePenButton("Continue", () => startNextBlock()));
+  card.appendChild(row);
+  screen.appendChild(card);
+  app.appendChild(screen);
+}
+
+function showFinishScreen() {
+  app.innerHTML = "";
+  const screen = document.createElement("div");
+  screen.className = "screen";
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `
+    <h1>Experiment complete</h1>
+    <div class="summary-grid">
+      <div class="summary-box">Total score<span class="value">${formatPoints(SESSION.total_score)}</span></div>
+      <div class="summary-box">Samples<span class="value">${DATA.samples.length}</span></div>
+      <div class="summary-box">Blocks<span class="value">${DATA.blocks.length}</span></div>
+    </div>
+    <p class="muted">
+      Download sample-level data for detailed trajectory analysis. The JSON file contains samples, events,
+      block summaries, and the full configuration.
+    </p>
+  `;
+  const row = document.createElement("div");
+  row.className = "button-row";
+  row.appendChild(makeDownloadButton("Download samples CSV", () => downloadCsv(DATA.samples, makeFilename("samples", "csv"))));
+  row.appendChild(makeDownloadButton("Download blocks CSV", () => downloadCsv(DATA.blocks, makeFilename("blocks", "csv")), "secondary"));
+  row.appendChild(makeDownloadButton("Download all JSON", () => downloadJson(DATA, makeFilename("all_data", "json")), "secondary"));
+  card.appendChild(row);
+  screen.appendChild(card);
+  app.appendChild(screen);
+}
+
+function makeDownloadButton(label, onClick, className = "") {
+  const button = document.createElement("button");
+  button.className = `pen-button ${className}`.trim();
+  button.textContent = label;
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+/**************************************************************
+ * 6. TASK DISPLAY AND BLOCK LOGIC
+ **************************************************************/
+function startNextBlock() {
+  SESSION.current_block_index += 1;
+  if (SESSION.current_block_index >= BLOCKS.length) {
+    showFinishScreen();
+  } else {
+    showBlockIntroScreen(SESSION.current_block_index);
+  }
+}
+
+function startBlock(blockIndex) {
+  const block = BLOCKS[blockIndex];
+  const widthSchedule = WIDTH_SCHEDULES[blockIndex];
+
+  app.innerHTML = `
+    <div id="task-screen">
+      <div id="panel">
+        <div class="panel-row">
+          <span><strong>Block ${blockIndex + 1}/${BLOCKS.length}</strong> | Reward: <strong>${block.reward_points}</strong> per ${EXPERIMENT_CONFIG.score_distance_unit_px}px</span>
+          <span>Elapsed: <strong id="elapsed-label">0:00</strong> &nbsp; Remaining: <strong id="remaining-label">${formatClock(EXPERIMENT_CONFIG.block_duration_seconds * 1000)}</strong></span>
+        </div>
+        <div class="score-row">
+          <span>Total score: <strong id="total-score-label">${formatPoints(SESSION.total_score)}</strong></span>
+          <span>Current block: <strong id="block-score-label">0</strong></span>
+          <span>Last: <strong id="last-score-label">+0</strong></span>
+          <span>Width: <strong id="width-label">${widthSchedule[0].track_width_px}px</strong></span>
+        </div>
+        <div id="progress-track"><div id="progress-fill"></div></div>
+      </div>
+      <canvas id="steering-canvas" width="${EXPERIMENT_CONFIG.canvas_width}" height="${EXPERIMENT_CONFIG.canvas_height}"></canvas>
+      <div id="message">Press the green start zone and move ${EXPERIMENT_CONFIG.movement_direction} around the track.</div>
+    </div>
+  `;
+
+  const canvas = document.getElementById("steering-canvas");
+  const ctx = canvas.getContext("2d");
+  const progressTrack = document.getElementById("progress-track");
+  const progressFill = document.getElementById("progress-fill");
+  const elapsedLabel = document.getElementById("elapsed-label");
+  const remainingLabel = document.getElementById("remaining-label");
+  const totalScoreLabel = document.getElementById("total-score-label");
+  const blockScoreLabel = document.getElementById("block-score-label");
+  const lastScoreLabel = document.getElementById("last-score-label");
+  const widthLabel = document.getElementById("width-label");
+  const message = document.getElementById("message");
+
+  createProgressTicks(progressTrack);
+
+  const center = {
+    x: EXPERIMENT_CONFIG.canvas_width / 2,
+    y: EXPERIMENT_CONFIG.canvas_height / 2,
+  };
+  const startPoint = pointOnTrack(center, EXPERIMENT_CONFIG.track_radius_px, 0);
+
+  ACTIVE = {
+    block_index: blockIndex,
+    block,
+    width_schedule: widthSchedule,
+    canvas,
+    ctx,
+    center,
+    startPoint,
+    block_start_time: performance.now(),
+    block_end_time: performance.now() + EXPERIMENT_CONFIG.block_duration_seconds * 1000,
+    animation_frame_id: null,
+    active_pointer_id: null,
+    pen_down: false,
+    has_started_movement: false,
+    previous_theta: null,
+    previous_sample_time: null,
+    last_position: null,
+    last_inside_track: true,
+    collision_pause_until: 0,
+    collision_active: false,
+    block_score: 0,
+    last_score_delta: 0,
+    forward_distance_px: 0,
+    scored_forward_distance_px: 0,
+    n_collisions: 0,
+    n_lifts: 0,
+    n_samples: 0,
+    chunk_sample_counts: {},
+    chunk_scores: {},
+    ui: {
+      progressFill,
+      elapsedLabel,
+      remainingLabel,
+      totalScoreLabel,
+      blockScoreLabel,
+      lastScoreLabel,
+      widthLabel,
+      message,
+    },
+  };
+
+  addEvent("block_start", {
+    block_index: blockIndex,
+    reward_points: block.reward_points,
+    width_schedule_json: JSON.stringify(widthSchedule),
+  });
+
+  canvas.addEventListener("pointerdown", handlePointerDown);
+  canvas.addEventListener("pointermove", handlePointerMove);
+  canvas.addEventListener("pointerup", handlePointerUp);
+  canvas.addEventListener("pointercancel", handlePointerCancel);
+  canvas.addEventListener("lostpointercapture", handleLostPointerCapture);
+
+  ACTIVE.animation_frame_id = requestAnimationFrame(updateAndDraw);
+}
+
+function createProgressTicks(progressTrack) {
+  const nChunks = Math.ceil(EXPERIMENT_CONFIG.block_duration_seconds / EXPERIMENT_CONFIG.chunk_duration_seconds);
+  for (let i = 1; i < nChunks; i++) {
+    const tick = document.createElement("div");
+    tick.className = "progress-tick";
+    tick.style.left = `${(i * EXPERIMENT_CONFIG.chunk_duration_seconds / EXPERIMENT_CONFIG.block_duration_seconds) * 100}%`;
+    progressTrack.appendChild(tick);
+  }
+}
+
+function handlePointerDown(event) {
+  if (!ACTIVE) return;
+  event.preventDefault();
+
+  if (!pointerAllowed(event)) {
+    ACTIVE.ui.message.textContent = `Please use: ${pointerAllowedDescription()}. Detected: ${event.pointerType}.`;
+    return;
+  }
+
+  const now = performance.now();
+  if (now >= ACTIVE.block_end_time) {
+    finishActiveBlock();
+    return;
+  }
+
+  const pos = getCanvasPositionFromPointer(event, ACTIVE.canvas);
+  const currentChunk = getChunkForElapsed(ACTIVE, now - ACTIVE.block_start_time);
+  const geom = evaluateTrackPosition(pos, currentChunk.track_width_px);
+
+  if (!ACTIVE.has_started_movement) {
+    const insideStart = distance(pos, ACTIVE.startPoint) <= EXPERIMENT_CONFIG.start_zone_radius_px;
+    if (!insideStart) {
+      ACTIVE.ui.message.textContent = "Press inside the green start zone to begin this block.";
+      return;
+    }
+  } else if (!geom.inside_track) {
+    ACTIVE.ui.message.textContent = "Place the Pencil back inside the track to continue.";
+    return;
+  }
+
+  ACTIVE.canvas.setPointerCapture(event.pointerId);
+  ACTIVE.active_pointer_id = event.pointerId;
+  ACTIVE.pen_down = true;
+  ACTIVE.has_started_movement = true;
+  ACTIVE.previous_theta = geom.theta;
+  ACTIVE.previous_sample_time = event.timeStamp || performance.now();
+  ACTIVE.last_position = pos;
+  ACTIVE.last_inside_track = geom.inside_track;
+  ACTIVE.ui.message.textContent = `Keep moving ${EXPERIMENT_CONFIG.movement_direction}.`;
+
+  addEvent("pen_down", {
+    block_index: ACTIVE.block_index,
+    block_elapsed_ms: now - ACTIVE.block_start_time,
+    x: pos.x,
+    y: pos.y,
+    ...getPointerDetails(event),
+  });
+
+  processPointerSample(event, "pointerdown");
+}
+
+function handlePointerMove(event) {
+  if (!ACTIVE || !ACTIVE.pen_down || event.pointerId !== ACTIVE.active_pointer_id) return;
+  event.preventDefault();
+
+  const events = typeof event.getCoalescedEvents === "function"
+    ? event.getCoalescedEvents()
+    : [event];
+
+  for (const e of events) {
+    processPointerSample(e, "pointermove");
+  }
+}
+
+function handlePointerUp(event) {
+  if (!ACTIVE || event.pointerId !== ACTIVE.active_pointer_id) return;
+  event.preventDefault();
+  processPointerSample(event, "pointerup");
+  ACTIVE.pen_down = false;
+  ACTIVE.active_pointer_id = null;
+  ACTIVE.previous_theta = null;
+  ACTIVE.previous_sample_time = null;
+  ACTIVE.n_lifts += 1;
+  ACTIVE.ui.message.textContent = "Pencil lifted — place it back inside the track to continue.";
+
+  addEvent("pen_up", {
+    block_index: ACTIVE.block_index,
+    block_elapsed_ms: performance.now() - ACTIVE.block_start_time,
+    ...getPointerDetails(event),
+  });
+}
+
+function handlePointerCancel(event) {
+  if (!ACTIVE || event.pointerId !== ACTIVE.active_pointer_id) return;
+  ACTIVE.pen_down = false;
+  ACTIVE.active_pointer_id = null;
+  ACTIVE.previous_theta = null;
+  ACTIVE.previous_sample_time = null;
+  ACTIVE.n_lifts += 1;
+  ACTIVE.ui.message.textContent = "Pointer cancelled — place the Pencil back inside the track to continue.";
+  addEvent("pointer_cancel", {
+    block_index: ACTIVE.block_index,
+    block_elapsed_ms: performance.now() - ACTIVE.block_start_time,
+  });
+}
+
+function handleLostPointerCapture(event) {
+  if (!ACTIVE || event.pointerId !== ACTIVE.active_pointer_id) return;
+  ACTIVE.pen_down = false;
+  ACTIVE.active_pointer_id = null;
+  ACTIVE.previous_theta = null;
+  ACTIVE.previous_sample_time = null;
+  ACTIVE.n_lifts += 1;
+  ACTIVE.ui.message.textContent = "Pointer capture lost — place the Pencil back inside the track to continue.";
+}
+
+function evaluateTrackPosition(pos, trackWidthPx) {
+  const polar = polarFromCanvasPosition(pos, ACTIVE.center);
+  const radialErrorPx = Math.abs(polar.r - EXPERIMENT_CONFIG.track_radius_px);
+  const safeHalfWidth = Math.max(0, trackWidthPx / 2 - EXPERIMENT_CONFIG.cursor_radius_px);
+  const insideTrack = radialErrorPx <= safeHalfWidth;
+  const normalizedRadialError = trackWidthPx > 0 ? radialErrorPx / (trackWidthPx / 2) : null;
+
+  return {
+    ...polar,
+    radial_error_px: radialErrorPx,
+    normalized_radial_error: normalizedRadialError,
+    inside_track: insideTrack,
+    safe_half_width_px: safeHalfWidth,
+  };
+}
+
+function processPointerSample(event, eventType) {
+  if (!ACTIVE) return;
+
+  const sampleTime = event.timeStamp || performance.now();
+  const blockElapsedMs = sampleTime - ACTIVE.block_start_time;
+
+  if (blockElapsedMs >= EXPERIMENT_CONFIG.block_duration_seconds * 1000) {
+    finishActiveBlock();
+    return;
+  }
+
+  const pos = getCanvasPositionFromPointer(event, ACTIVE.canvas);
+  const chunk = getChunkForElapsed(ACTIVE, blockElapsedMs);
+  const geom = evaluateTrackPosition(pos, chunk.track_width_px);
+
+  let forwardProgressPx = 0;
+  let scoreDelta = 0;
+  let angularDeltaRad = 0;
+  let instantaneousSpeedPxPerS = null;
+  let angularSpeedRadPerS = null;
+
+  if (ACTIVE.previous_theta !== null) {
+    angularDeltaRad = forwardDeltaTheta(
+      ACTIVE.previous_theta,
+      geom.theta,
+      EXPERIMENT_CONFIG.movement_direction
+    );
+    forwardProgressPx = angularDeltaRad * EXPERIMENT_CONFIG.track_radius_px;
+    forwardProgressPx = clamp(
+      forwardProgressPx,
+      0,
+      EXPERIMENT_CONFIG.max_forward_progress_px_per_sample
+    );
+  }
+
+  if (ACTIVE.previous_sample_time !== null && sampleTime > ACTIVE.previous_sample_time && ACTIVE.last_position !== null) {
+    const dtSec = (sampleTime - ACTIVE.previous_sample_time) / 1000;
+    const stepDistance = distance(pos, ACTIVE.last_position);
+    instantaneousSpeedPxPerS = stepDistance / dtSec;
+    angularSpeedRadPerS = angularDeltaRad / dtSec;
+  }
+
+  const wasInside = ACTIVE.last_inside_track;
+  const collisionPauseActive = sampleTime < ACTIVE.collision_pause_until;
+
+  if (!geom.inside_track && wasInside) {
+    ACTIVE.n_collisions += 1;
+    ACTIVE.collision_pause_until = Math.max(
+      ACTIVE.collision_pause_until,
+      sampleTime + EXPERIMENT_CONFIG.collision_pause_ms
+    );
+    addEvent("wall_contact", {
+      block_index: ACTIVE.block_index,
+      chunk_index: chunk.chunk_index,
+      track_width_px: chunk.track_width_px,
+      block_elapsed_ms: blockElapsedMs,
+      x: pos.x,
+      y: pos.y,
+      radial_error_px: geom.radial_error_px,
+      normalized_radial_error: geom.normalized_radial_error,
+    });
+  }
+
+  const canScore = geom.inside_track && sampleTime >= ACTIVE.collision_pause_until;
+  if (canScore) {
+    scoreDelta = ACTIVE.block.reward_points * (forwardProgressPx / EXPERIMENT_CONFIG.score_distance_unit_px);
+    ACTIVE.block_score += scoreDelta;
+    SESSION.total_score += scoreDelta;
+    ACTIVE.scored_forward_distance_px += forwardProgressPx;
+  }
+
+  ACTIVE.forward_distance_px += forwardProgressPx;
+  ACTIVE.last_score_delta = scoreDelta;
+  ACTIVE.n_samples += 1;
+  ACTIVE.chunk_sample_counts[chunk.chunk_index] = (ACTIVE.chunk_sample_counts[chunk.chunk_index] || 0) + 1;
+  ACTIVE.chunk_scores[chunk.chunk_index] = (ACTIVE.chunk_scores[chunk.chunk_index] || 0) + scoreDelta;
+
+  const sampleRow = {
+    participant_id: EXPERIMENT_CONFIG.participant_id,
+    experiment_name: EXPERIMENT_CONFIG.experiment_name,
+    event_type: eventType,
+    time_ms: sampleTime - SESSION.experiment_start_time,
+    block_index: ACTIVE.block_index,
+    reward_condition_index: ACTIVE.block.reward_condition_index,
+    reward_repetition: ACTIVE.block.reward_repetition,
+    reward_points: ACTIVE.block.reward_points,
+    block_elapsed_ms: blockElapsedMs,
+    block_duration_seconds: EXPERIMENT_CONFIG.block_duration_seconds,
+    chunk_index: chunk.chunk_index,
+    chunk_start_ms: chunk.chunk_start_ms,
+    chunk_end_ms: chunk.chunk_end_ms,
+    track_width_px: chunk.track_width_px,
+    previous_track_width_px: chunk.previous_track_width_px,
+    transition_label: chunk.transition_label,
+    track_radius_px: EXPERIMENT_CONFIG.track_radius_px,
+    cursor_radius_px: EXPERIMENT_CONFIG.cursor_radius_px,
+    x: pos.x,
+    y: pos.y,
+    client_x: pos.client_x,
+    client_y: pos.client_y,
+    radius_from_center_px: geom.r,
+    theta_rad: geom.theta,
+    radial_error_px: geom.radial_error_px,
+    normalized_radial_error: geom.normalized_radial_error,
+    inside_track: geom.inside_track,
+    safe_half_width_px: geom.safe_half_width_px,
+    collision_pause_active: sampleTime < ACTIVE.collision_pause_until,
+    forward_progress_px: forwardProgressPx,
+    scored_forward_progress_px: canScore ? forwardProgressPx : 0,
+    angular_delta_rad: angularDeltaRad,
+    instantaneous_speed_px_per_s: instantaneousSpeedPxPerS,
+    angular_speed_rad_per_s: angularSpeedRadPerS,
+    points_delta: scoreDelta,
+    block_score_after_sample: ACTIVE.block_score,
+    total_score_after_sample: SESSION.total_score,
+    movement_direction: EXPERIMENT_CONFIG.movement_direction,
+    ...getPointerDetails(event),
+  };
+
+  if (EXPERIMENT_CONFIG.save_every_pointer_sample) {
+    DATA.samples.push(sampleRow);
+  }
+
+  ACTIVE.previous_theta = geom.theta;
+  ACTIVE.previous_sample_time = sampleTime;
+  ACTIVE.last_position = pos;
+  ACTIVE.last_inside_track = geom.inside_track;
+
+  updateScoreLabels();
+}
+
+function updateScoreLabels() {
+  if (!ACTIVE) return;
+  ACTIVE.ui.totalScoreLabel.textContent = formatPoints(SESSION.total_score);
+  ACTIVE.ui.blockScoreLabel.textContent = formatPoints(ACTIVE.block_score);
+  ACTIVE.ui.lastScoreLabel.textContent = `+${formatPoints(ACTIVE.last_score_delta)}`;
+}
+
+function updateAndDraw() {
+  if (!ACTIVE) return;
+
+  const now = performance.now();
+  const elapsedMs = now - ACTIVE.block_start_time;
+  const remainingMs = ACTIVE.block_end_time - now;
+
+  if (elapsedMs >= EXPERIMENT_CONFIG.block_duration_seconds * 1000) {
+    finishActiveBlock();
+    return;
+  }
+
+  const progress = clamp(elapsedMs / (EXPERIMENT_CONFIG.block_duration_seconds * 1000), 0, 1);
+  ACTIVE.ui.progressFill.style.width = `${progress * 100}%`;
+  ACTIVE.ui.elapsedLabel.textContent = formatElapsedClock(elapsedMs);
+  ACTIVE.ui.remainingLabel.textContent = formatClock(remainingMs);
+
+  const chunk = getChunkForElapsed(ACTIVE, elapsedMs);
+  ACTIVE.ui.widthLabel.textContent = `${chunk.track_width_px}px`;
+
+  drawTask(chunk, now);
+  ACTIVE.animation_frame_id = requestAnimationFrame(updateAndDraw);
+}
+
+function drawTask(chunk, now) {
+  const ctx = ACTIVE.ctx;
+  const center = ACTIVE.center;
+  const canvas = ACTIVE.canvas;
+  const trackWidth = chunk.track_width_px;
+  const collisionDisplayActive = now < ACTIVE.collision_pause_until || (ACTIVE.last_position && !ACTIVE.last_inside_track);
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Draw allowed track area as a thick circular stroke.
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineWidth = trackWidth;
+  ctx.strokeStyle = collisionDisplayActive
+    ? EXPERIMENT_CONFIG.collision_track_fill_color
+    : EXPERIMENT_CONFIG.track_fill_color;
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, EXPERIMENT_CONFIG.track_radius_px, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+
+  // Draw centerline.
+  ctx.save();
+  ctx.setLineDash([8, 8]);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = EXPERIMENT_CONFIG.track_centerline_color;
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, EXPERIMENT_CONFIG.track_radius_px, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+
+  // Draw inner and outer walls.
+  const innerRadius = EXPERIMENT_CONFIG.track_radius_px - trackWidth / 2;
+  const outerRadius = EXPERIMENT_CONFIG.track_radius_px + trackWidth / 2;
+  ctx.save();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = EXPERIMENT_CONFIG.track_boundary_color;
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, innerRadius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, outerRadius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+
+  // Draw start zone.
+  ctx.save();
+  ctx.fillStyle = EXPERIMENT_CONFIG.start_zone_color;
+  ctx.strokeStyle = EXPERIMENT_CONFIG.start_zone_outline_color;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(
+    ACTIVE.startPoint.x,
+    ACTIVE.startPoint.y,
+    EXPERIMENT_CONFIG.start_zone_radius_px,
+    0,
+    Math.PI * 2
+  );
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+
+  // Draw direction indicator near start zone.
+  drawDirectionArrow(ctx, ACTIVE.startPoint, EXPERIMENT_CONFIG.movement_direction);
+
+  // Draw cursor/dot.
+  if (ACTIVE.last_position) {
+    ctx.save();
+    ctx.fillStyle = ACTIVE.last_inside_track ? EXPERIMENT_CONFIG.cursor_color : EXPERIMENT_CONFIG.cursor_outside_color;
+    ctx.strokeStyle = "rgba(0,0,0,0.55)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(
+      ACTIVE.last_position.x,
+      ACTIVE.last_position.y,
+      EXPERIMENT_CONFIG.cursor_radius_px,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawDirectionArrow(ctx, point, direction) {
+  const sign = direction === "clockwise" ? 1 : -1;
+  const arrowCenter = { x: point.x, y: point.y + sign * 46 };
+  const arrowSize = 13;
+
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.58)";
+  ctx.strokeStyle = "rgba(0,0,0,0.58)";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(arrowCenter.x - arrowSize, arrowCenter.y - sign * arrowSize);
+  ctx.lineTo(arrowCenter.x, arrowCenter.y);
+  ctx.lineTo(arrowCenter.x - arrowSize, arrowCenter.y + sign * arrowSize);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function finishActiveBlock() {
+  if (!ACTIVE) return;
+
+  const finished = ACTIVE;
+  ACTIVE = null;
+
+  if (finished.animation_frame_id !== null) {
+    cancelAnimationFrame(finished.animation_frame_id);
+  }
+
+  finished.canvas.removeEventListener("pointerdown", handlePointerDown);
+  finished.canvas.removeEventListener("pointermove", handlePointerMove);
+  finished.canvas.removeEventListener("pointerup", handlePointerUp);
+  finished.canvas.removeEventListener("pointercancel", handlePointerCancel);
+  finished.canvas.removeEventListener("lostpointercapture", handleLostPointerCapture);
+
+  const samplesForBlock = DATA.samples.filter((row) => row.block_index === finished.block_index);
+  const insideSamples = samplesForBlock.filter((row) => row.inside_track);
+  const normalizedErrors = samplesForBlock.map((row) => row.normalized_radial_error).filter((x) => Number.isFinite(x));
+  const speeds = samplesForBlock.map((row) => row.instantaneous_speed_px_per_s).filter((x) => Number.isFinite(x));
+
+  const summary = {
+    participant_id: EXPERIMENT_CONFIG.participant_id,
+    experiment_name: EXPERIMENT_CONFIG.experiment_name,
+    block_index: finished.block_index,
+    reward_condition_index: finished.block.reward_condition_index,
+    reward_repetition: finished.block.reward_repetition,
+    reward_points: finished.block.reward_points,
+    block_duration_seconds: EXPERIMENT_CONFIG.block_duration_seconds,
+    chunk_duration_seconds: EXPERIMENT_CONFIG.chunk_duration_seconds,
+    width_schedule_json: JSON.stringify(finished.width_schedule),
+    block_score: finished.block_score,
+    total_score_after_block: SESSION.total_score,
+    forward_distance_px: finished.forward_distance_px,
+    scored_forward_distance_px: finished.scored_forward_distance_px,
+    n_collisions: finished.n_collisions,
+    n_lifts: finished.n_lifts,
+    n_samples: finished.n_samples,
+    proportion_samples_inside_track: samplesForBlock.length > 0 ? insideSamples.length / samplesForBlock.length : null,
+    median_normalized_radial_error: median(normalizedErrors),
+    median_speed_px_per_s: median(speeds),
+    chunk_sample_counts_json: JSON.stringify(finished.chunk_sample_counts),
+    chunk_scores_json: JSON.stringify(finished.chunk_scores),
+  };
+
+  DATA.blocks.push(summary);
+  addEvent("block_end", summary);
+  showBlockSummaryScreen(summary);
+}
+
+/**************************************************************
+ * 7. DOWNLOAD UTILITIES
+ **************************************************************/
+function makeFilename(kind, extension) {
+  return `${EXPERIMENT_CONFIG.filename_prefix}_${sanitizeFilenamePart(EXPERIMENT_CONFIG.participant_id)}_${kind}_${timestampForFilename()}.${extension}`;
+}
+
+function downloadTextFile(text, filename, mimeType) {
+  const blob = new Blob([text], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function csvEscape(value) {
+  if (value === null || value === undefined) return "";
+  const str = String(value);
+  if (/[",\n\r]/.test(str)) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function rowsToCsv(rows) {
+  if (!rows || rows.length === 0) return "";
+  const columns = Array.from(rows.reduce((set, row) => {
+    Object.keys(row).forEach((key) => set.add(key));
+    return set;
+  }, new Set()));
+
+  const lines = [columns.map(csvEscape).join(",")];
+  rows.forEach((row) => {
+    lines.push(columns.map((column) => csvEscape(row[column])).join(","));
+  });
+  return lines.join("\n");
+}
+
+function downloadCsv(rows, filename) {
+  downloadTextFile(rowsToCsv(rows), filename, "text/csv;charset=utf-8");
+}
+
+function downloadJson(object, filename) {
+  downloadTextFile(JSON.stringify(object, null, 2), filename, "application/json;charset=utf-8");
+}
+
+/**************************************************************
+ * 8. STARTUP
+ **************************************************************/
+function initializeExperiment() {
+  BLOCKS = makeBlockSchedule(EXPERIMENT_CONFIG);
+  WIDTH_SCHEDULES = makeWidthSchedules(EXPERIMENT_CONFIG, BLOCKS.length);
+  addEvent("experiment_initialized", {
+    n_blocks: BLOCKS.length,
+    blocks_json: JSON.stringify(BLOCKS),
+    width_schedules_json: JSON.stringify(WIDTH_SCHEDULES),
+  });
+  showWelcomeScreen();
+}
+
+initializeExperiment();
+</script>
+</body>
+</html>
