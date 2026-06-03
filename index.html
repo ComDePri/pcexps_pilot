@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Reaching Task Demo</title>
+    <title>Reaching and Steering Task Demo</title>
     <style>
         body {
             margin: 0;
@@ -18,7 +18,7 @@
         }
 
         .card {
-            max-width: 720px;
+            max-width: 760px;
             background: white;
             padding: 32px;
             border-radius: 18px;
@@ -57,20 +57,26 @@
         a.secondary {
             background: #444;
         }
+
+        a.tertiary {
+            background: #247a4d;
+        }
     </style>
 </head>
 <body>
 <div class="card">
-    <h1>Reaching Task Demo</h1>
+    <h1>Reaching and Steering Task Demo</h1>
     <p>
         Choose which iPad + Apple Pencil version to run.
-        Both versions use timed reward blocks, timed target-size chunks,
-        score display, and the constant locator ring.
+        The reaching versions use timed reward blocks, timed target-size chunks,
+        score display, and the constant locator ring. The steering version uses
+        a continuous circular track with changing difficulty over time.
     </p>
 
     <div class="buttons">
         <a href="tap.html">Tap target version</a>
         <a class="secondary" href="drag.html">Press-move-lift version</a>
+        <a class="tertiary" href="steering.html">Circular steering version</a>
     </div>
 </div>
 </body>
