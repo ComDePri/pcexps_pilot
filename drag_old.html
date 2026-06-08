@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>Reaching Task: Optimized Drag/Lift with Optional Calibration</title>
+  <title>Reaching Task: Drag/Lift with Optional Calibration</title>
 
   <script src="https://unpkg.com/jspsych@8.2.3"></script>
   <link href="https://unpkg.com/jspsych@8.2.3/css/jspsych.css" rel="stylesheet" type="text/css" />
@@ -247,13 +247,6 @@ const EXPERIMENT_CONFIG = {
   require_primary_pointer: true,
   response_mode: "press_move_lift",
 
-  // Low-latency input configuration. The physical Pencil tip is the cursor.
-  use_coalesced_events: true,
-  use_predicted_events: false,
-  use_pointerrawupdate: false,
-  use_pointer_capture: false,
-  update_hud_hz: 8,
-
   device_lock: {
     enabled: false,
     expected_inner_width: null,
@@ -275,10 +268,10 @@ const EXPERIMENT_CONFIG = {
   },
 
   calibration: {
-    candidate_widths_px: [20, 28, 36, 48, 64, 84, 110],
-    prefixed_large_width_px: 110,
-    chunk_duration_seconds: 12,
-    repetitions_per_width: 1,
+    candidate_widths_px: [10, 14, 18, 24, 32, 48, 64, 80],
+    prefixed_large_width_px: 80,
+    chunk_duration_seconds: 20,
+    repetitions_per_width: 2,
     randomize_width_order: true,
     reward_points: 0,
     movement_timeout_ms: null,
@@ -299,28 +292,28 @@ const EXPERIMENT_CONFIG = {
   },
 
   switching_task: {
-    reward_values: [1, 5, 10],
+    reward_values: [1, 10],
     block_duration_seconds: 60,
     chunk_duration_seconds: 10,
-    blocks_per_reward: 2,
+    blocks_per_reward: 4,
     randomize_block_order: true,
     balance_target_width_transitions_across_blocks: true,
     strict_chunk_timing: true,
     strict_block_timing: true,
   },
 
-  directions_deg: [0, 45, 90, 135, 180, 225, 270, 315],
+  directions_deg: [90, 270],
   randomize_direction_order_within_block: true,
 
   movement_timeout_ms: 4000,
-  feedback_duration_ms: 350,
+  feedback_duration_ms: 300,
 
   // If true, show an Apple-Pencil continue screen before each timed block.
   // This creates a real pause/break between consecutive blocks.
   show_inter_block_screens: true,
 
   save_mouse_path: true,
-  filename_prefix: "reaching_drag_lift_optional_calibration_optimized",
+  filename_prefix: "reaching_drag_lift_optional_calibration",
 
   background_color: "#ffffff",
   start_color: "#111111",
@@ -342,7 +335,7 @@ const EXPERIMENT_CONFIG = {
 /**************************************************************
  * 2. GLOBAL STATE AND HELPERS
  **************************************************************/
-const EXPERIMENT_NAME = "reaching_drag_lift_optional_calibration_optimized";
+const EXPERIMENT_NAME = "reaching_drag_lift_optional_calibration";
 const EXPERIMENT_START_TIME = performance.now();
 const GLOBAL_DATA_ROWS = [];
 let GLOBAL_TOTAL_SCORE = 0;
@@ -966,11 +959,6 @@ const reachBlockInfo = {
     strict_block_timing: { type: ParameterType.BOOL, default: true },
     show_score_panel: { type: ParameterType.BOOL, default: true },
     save_mouse_path: { type: ParameterType.BOOL, default: true },
-    use_coalesced_events: { type: ParameterType.BOOL, default: true },
-    use_predicted_events: { type: ParameterType.BOOL, default: false },
-    use_pointerrawupdate: { type: ParameterType.BOOL, default: false },
-    use_pointer_capture: { type: ParameterType.BOOL, default: false },
-    update_hud_hz: { type: ParameterType.FLOAT, default: 8 },
     background_color: { type: ParameterType.STRING, default: "#ffffff" },
     start_color: { type: ParameterType.STRING, default: "#111111" },
     target_color: { type: ParameterType.STRING, default: "#2f6fed" },
@@ -1049,8 +1037,6 @@ class JsPsychTimedDragLiftReachBlock {
     const blockScoreLabel = display_element.querySelector("#block-score-label");
     const lastScoreLabel = display_element.querySelector("#last-score-label");
     const ctx = canvas.getContext("2d");
-    let canvasRect = canvas.getBoundingClientRect();
-    let lastHudUpdateTime = -Infinity;
     const plugin = this;
 
     function resolveWidthSchedule(block) {
@@ -1100,16 +1086,12 @@ class JsPsychTimedDragLiftReachBlock {
       return Math.min(blockEndTime, blockStartTime + (idx + 1) * block.chunk_duration_seconds * 1000);
     }
 
-    function updateTimerDisplay(now = performance.now()) {
-      const elapsed = Math.min(now - blockStartTime, blockDurationMs);
+    function updateTimerDisplay() {
+      const elapsed = Math.min(getElapsedMs(), blockDurationMs);
       const remaining = Math.max(0, blockDurationMs - elapsed);
-      const hudIntervalMs = 1000 / Math.max(1, block.update_hud_hz || 8);
-      if (now - lastHudUpdateTime >= hudIntervalMs) {
-        lastHudUpdateTime = now;
-        progressFill.style.width = `${Math.min(1, elapsed / blockDurationMs) * 100}%`;
-        elapsedLabel.textContent = formatElapsedClock(elapsed);
-        remainingLabel.textContent = formatClock(remaining);
-      }
+      progressFill.style.width = `${Math.min(1, elapsed / blockDurationMs) * 100}%`;
+      elapsedLabel.textContent = formatElapsedClock(elapsed);
+      remainingLabel.textContent = formatClock(remaining);
       if (!blockFinished) animationFrameId = requestAnimationFrame(updateTimerDisplay);
     }
 
@@ -1126,9 +1108,10 @@ class JsPsychTimedDragLiftReachBlock {
     }
 
     function getCanvasPosition(event) {
+      const rect = canvas.getBoundingClientRect();
       return {
-        x: ((event.clientX - canvasRect.left) / canvasRect.width) * canvas.width,
-        y: ((event.clientY - canvasRect.top) / canvasRect.height) * canvas.height,
+        x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+        y: ((event.clientY - rect.top) / rect.height) * canvas.height,
         client_x: event.clientX,
         client_y: event.clientY,
       };
@@ -1180,25 +1163,16 @@ class JsPsychTimedDragLiftReachBlock {
       if (phase === "movement") drawTarget();
     }
 
-    function addSample(point, event, sourceEventType = "pointermove", isCoalesced = false) {
+    function addSample(point, event) {
       if (!currentTrial || currentTrial.movement_start_time === null) return;
-      const eventTimestamp = event && Number.isFinite(event.timeStamp) ? event.timeStamp : null;
-      const t = (
-        eventTimestamp !== null &&
-        Number.isFinite(currentTrial.movement_start_event_timestamp)
-      ) ? Math.max(0, eventTimestamp - currentTrial.movement_start_event_timestamp)
-        : performance.now() - currentTrial.movement_start_time;
-
       currentTrial.samples.push({
-        t,
+        t: performance.now() - currentTrial.movement_start_time,
         x: point.x,
         y: point.y,
         pressure: event ? event.pressure : null,
         tilt_x: event ? event.tiltX : null,
         tilt_y: event ? event.tiltY : null,
         twist: event ? event.twist : null,
-        source_event_type: sourceEventType,
-        is_coalesced: isCoalesced,
       });
     }
 
@@ -1212,7 +1186,6 @@ class JsPsychTimedDragLiftReachBlock {
       currentTrial = {
         trial_created_time: performance.now(),
         movement_start_time: null,
-        movement_start_event_timestamp: null,
         start_point: null,
         start_event_info: null,
         samples: [],
@@ -1252,6 +1225,7 @@ class JsPsychTimedDragLiftReachBlock {
 
       phase = "movement";
       activePointerId = event.pointerId;
+      canvas.setPointerCapture(event.pointerId);
 
       currentTrial.start_point = startPoint;
       currentTrial.start_event_info = {
@@ -1263,18 +1237,7 @@ class JsPsychTimedDragLiftReachBlock {
         twist: event.twist,
       };
       currentTrial.movement_start_time = performance.now();
-      currentTrial.movement_start_event_timestamp = Number.isFinite(event.timeStamp) ? event.timeStamp : null;
-      currentTrial.samples = [{
-        t: 0,
-        x: center.x,
-        y: center.y,
-        pressure: event.pressure,
-        tilt_x: event.tiltX,
-        tilt_y: event.tiltY,
-        twist: event.twist,
-        source_event_type: "pointerdown",
-        is_coalesced: false,
-      }];
+      currentTrial.samples = [{ t: 0, x: center.x, y: center.y, pressure: event.pressure, tilt_x: event.tiltX, tilt_y: event.tiltY, twist: event.twist }];
       message.textContent = "Move while keeping the Pencil pressed, then lift at the target.";
       drawTrial();
 
@@ -1318,7 +1281,7 @@ class JsPsychTimedDragLiftReachBlock {
       let clickDistanceFromStart = null;
 
       if (endPoint !== null) {
-        addSample(endPoint, endEvent, endpointEventType, false);
+        addSample(endPoint, endEvent);
         releaseX = endPoint.x;
         releaseY = endPoint.y;
         releaseClientX = endPoint.client_x;
@@ -1429,12 +1392,6 @@ class JsPsychTimedDragLiftReachBlock {
         n_pointer_samples: currentTrial.samples.length,
         mouse_path_json: block.save_mouse_path ? JSON.stringify(currentTrial.samples) : null,
 
-        input_optimization_version: "physical_tip_coalesced_no_prediction_v1",
-        use_coalesced_events: block.use_coalesced_events,
-        use_predicted_events: block.use_predicted_events,
-        use_pointerrawupdate: block.use_pointerrawupdate,
-        use_pointer_capture: block.use_pointer_capture,
-
         show_target_locator_ring: block.show_target_locator_ring,
         target_locator_ring_radius_px: block.target_locator_ring_radius_px,
         target_locator_ring_line_width_px: block.target_locator_ring_line_width_px,
@@ -1463,6 +1420,9 @@ class JsPsychTimedDragLiftReachBlock {
       ctx.fillText(feedbackText, center.x, center.y);
       message.textContent = "";
 
+      try {
+        if (activePointerId !== null && canvas.hasPointerCapture(activePointerId)) canvas.releasePointerCapture(activePointerId);
+      } catch (err) {}
       activePointerId = null;
       currentTrial = null;
 
@@ -1485,9 +1445,9 @@ class JsPsychTimedDragLiftReachBlock {
 
     function cleanup() {
       canvas.removeEventListener("pointerdown", handlePointerDown);
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
-      window.removeEventListener("pointercancel", handlePointerCancel);
+      canvas.removeEventListener("pointermove", handlePointerMove);
+      canvas.removeEventListener("pointerup", handlePointerUp);
+      canvas.removeEventListener("pointercancel", handlePointerCancel);
       if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
       if (movementTimeoutHandle !== null) clearTimeout(movementTimeoutHandle);
       if (feedbackTimeoutHandle !== null) clearTimeout(feedbackTimeoutHandle);
@@ -1522,11 +1482,6 @@ class JsPsychTimedDragLiftReachBlock {
         total_score_after_block: GLOBAL_TOTAL_SCORE,
         block_accuracy: trialInBlock > 0 ? blockCorrectTrials / trialInBlock : null,
         target_width_schedule_json: JSON.stringify(widthSchedule),
-        input_optimization_version: "physical_tip_coalesced_no_prediction_v1",
-        use_coalesced_events: block.use_coalesced_events,
-        use_predicted_events: block.use_predicted_events,
-        use_pointerrawupdate: block.use_pointerrawupdate,
-        use_pointer_capture: block.use_pointer_capture,
         trials_started_per_chunk_json: JSON.stringify(trialsStartedPerChunk),
         trials_completed_per_chunk_json: JSON.stringify(trialsCompletedPerChunk),
       };
@@ -1549,23 +1504,9 @@ class JsPsychTimedDragLiftReachBlock {
     }
 
     function handlePointerMove(event) {
-      if (phase !== "movement" || blockFinished || event.pointerId !== activePointerId) return;
       event.preventDefault();
-
-      const events = (
-        block.use_coalesced_events &&
-        typeof event.getCoalescedEvents === "function"
-      ) ? event.getCoalescedEvents() : [event];
-      const realEvents = events.length > 0 ? events : [event];
-
-      for (const sampleEvent of realEvents) {
-        addSample(
-          getCanvasPosition(sampleEvent),
-          sampleEvent,
-          "pointermove",
-          sampleEvent !== event
-        );
-      }
+      if (phase !== "movement" || blockFinished || event.pointerId !== activePointerId) return;
+      addSample(getCanvasPosition(event), event);
     }
 
     function handlePointerUp(event) {
@@ -1582,9 +1523,9 @@ class JsPsychTimedDragLiftReachBlock {
     }
 
     canvas.addEventListener("pointerdown", handlePointerDown, { passive: false });
-    window.addEventListener("pointermove", handlePointerMove, { passive: false });
-    window.addEventListener("pointerup", handlePointerUp, { passive: false });
-    window.addEventListener("pointercancel", handlePointerCancel, { passive: false });
+    canvas.addEventListener("pointermove", handlePointerMove, { passive: false });
+    canvas.addEventListener("pointerup", handlePointerUp, { passive: false });
+    canvas.addEventListener("pointercancel", handlePointerCancel, { passive: false });
 
     updateTimerDisplay();
     updateScoreDisplay(null);
@@ -1771,11 +1712,6 @@ function makeCalibrationTimeline(startBlockIndex) {
       strict_chunk_timing: false,
       show_score_panel: false,
       save_mouse_path: EXPERIMENT_CONFIG.save_mouse_path,
-      use_coalesced_events: EXPERIMENT_CONFIG.use_coalesced_events,
-      use_predicted_events: EXPERIMENT_CONFIG.use_predicted_events,
-      use_pointerrawupdate: EXPERIMENT_CONFIG.use_pointerrawupdate,
-      use_pointer_capture: EXPERIMENT_CONFIG.use_pointer_capture,
-      update_hud_hz: EXPERIMENT_CONFIG.update_hud_hz,
       background_color: EXPERIMENT_CONFIG.background_color,
       start_color: EXPERIMENT_CONFIG.start_color,
       target_color: EXPERIMENT_CONFIG.target_color,
@@ -1883,11 +1819,6 @@ function makeFixedTrainingTimeline(startBlockIndex) {
       strict_chunk_timing: false,
       show_score_panel: true,
       save_mouse_path: EXPERIMENT_CONFIG.save_mouse_path,
-      use_coalesced_events: EXPERIMENT_CONFIG.use_coalesced_events,
-      use_predicted_events: EXPERIMENT_CONFIG.use_predicted_events,
-      use_pointerrawupdate: EXPERIMENT_CONFIG.use_pointerrawupdate,
-      use_pointer_capture: EXPERIMENT_CONFIG.use_pointer_capture,
-      update_hud_hz: EXPERIMENT_CONFIG.update_hud_hz,
       background_color: EXPERIMENT_CONFIG.background_color,
       start_color: EXPERIMENT_CONFIG.start_color,
       target_color: EXPERIMENT_CONFIG.target_color,
@@ -1966,11 +1897,6 @@ function makeSwitchingTimeline(startBlockIndex) {
       strict_chunk_timing: cfg.strict_chunk_timing,
       show_score_panel: true,
       save_mouse_path: EXPERIMENT_CONFIG.save_mouse_path,
-      use_coalesced_events: EXPERIMENT_CONFIG.use_coalesced_events,
-      use_predicted_events: EXPERIMENT_CONFIG.use_predicted_events,
-      use_pointerrawupdate: EXPERIMENT_CONFIG.use_pointerrawupdate,
-      use_pointer_capture: EXPERIMENT_CONFIG.use_pointer_capture,
-      update_hud_hz: EXPERIMENT_CONFIG.update_hud_hz,
       background_color: EXPERIMENT_CONFIG.background_color,
       start_color: EXPERIMENT_CONFIG.start_color,
       target_color: EXPERIMENT_CONFIG.target_color,

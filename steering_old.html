@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Circular Steering Task — Optimized Pencil Feedback</title>
+  <title>Circular Steering Task</title>
   <style>
     html, body {
       margin: 0;
@@ -168,25 +168,7 @@
       border-radius: 18px;
       box-shadow: 0 10px 28px rgba(0,0,0,0.08);
       touch-action: none;
-      cursor: none;
-    }
-
-    #pen-halo {
-      position: fixed;
-      left: 0;
-      top: 0;
-      width: 34px;
-      height: 34px;
-      margin-left: -17px;
-      margin-top: -17px;
-      border-radius: 50%;
-      border: 2px solid rgba(47, 111, 237, 0.55);
-      background: rgba(47, 111, 237, 0.08);
-      pointer-events: none;
-      will-change: transform;
-      transform: translate3d(-100px, -100px, 0);
-      display: none;
-      z-index: 20;
+      cursor: crosshair;
     }
 
     #message {
@@ -233,7 +215,7 @@
  * 1. EASY-TO-EDIT EXPERIMENT CONFIGURATION
  **************************************************************/
 const EXPERIMENT_CONFIG = {
-  experiment_name: "circular_steering_buzz_wire_optimized_pencil_v1",
+  experiment_name: "circular_steering_buzz_wire_v1",
   participant_id:
     new URLSearchParams(window.location.search).get("participant") ||
     `anon_${Math.random().toString(36).slice(2, 10)}`,
@@ -242,15 +224,6 @@ const EXPERIMENT_CONFIG = {
   // For desktop debugging, set allow_mouse_for_debug to true.
   allowed_pointer_types: ["pen"],
   allow_mouse_for_debug: true,
-
-  // Input/feedback optimization.
-  // The physical Pencil tip is the primary cursor. "none" gives the lowest-lag
-  // experience; "halo" adds a subtle event-driven indicator around the tip.
-  visual_cursor_mode: "none", // "none" or "halo"
-  use_coalesced_events: true,
-  use_predicted_events: false,
-  use_pointerrawupdate: false,
-  update_hud_hz: 8,
 
   // Canvas and circular track geometry, in CSS pixels.
   canvas_width: 920,
@@ -289,7 +262,7 @@ const EXPERIMENT_CONFIG = {
 
   // Data.
   save_every_pointer_sample: true,
-  filename_prefix: "circular_steering_buzz_wire_optimized_pencil",
+  filename_prefix: "circular_steering_buzz_wire",
 };
 
 /**************************************************************
@@ -442,26 +415,14 @@ function pointOnTrack(center, radius, theta) {
   };
 }
 
-function getCanvasPositionFromPointer(event, canvas, cachedRect = null) {
-  const rect = cachedRect || canvas.getBoundingClientRect();
+function getCanvasPositionFromPointer(event, canvas) {
+  const rect = canvas.getBoundingClientRect();
   return {
     x: ((event.clientX - rect.left) / rect.width) * canvas.width,
     y: ((event.clientY - rect.top) / rect.height) * canvas.height,
     client_x: event.clientX,
     client_y: event.clientY,
   };
-}
-
-function updateVisualCursor(event) {
-  if (!ACTIVE || !ACTIVE.ui.penHalo) return;
-  if (EXPERIMENT_CONFIG.visual_cursor_mode !== "halo") return;
-  ACTIVE.ui.penHalo.style.display = "block";
-  ACTIVE.ui.penHalo.style.transform = `translate3d(${event.clientX}px, ${event.clientY}px, 0)`;
-}
-
-function hideVisualCursor() {
-  if (!ACTIVE || !ACTIVE.ui.penHalo) return;
-  ACTIVE.ui.penHalo.style.display = "none";
 }
 
 function getPointerDetails(event) {
@@ -786,8 +747,7 @@ function startBlock(blockIndex) {
         <div id="progress-track"><div id="progress-fill"></div></div>
       </div>
       <canvas id="steering-canvas" width="${EXPERIMENT_CONFIG.canvas_width}" height="${EXPERIMENT_CONFIG.canvas_height}"></canvas>
-      <div id="pen-halo" aria-hidden="true"></div>
-      <div id="message">Press the green start zone and move ${EXPERIMENT_CONFIG.movement_direction} around the track. Use the physical Pencil tip as the cursor.</div>
+      <div id="message">Press the green start zone and move ${EXPERIMENT_CONFIG.movement_direction} around the track.</div>
     </div>
   `;
 
@@ -802,7 +762,6 @@ function startBlock(blockIndex) {
   const lastScoreLabel = document.getElementById("last-score-label");
   const widthLabel = document.getElementById("width-label");
   const message = document.getElementById("message");
-  const penHalo = document.getElementById("pen-halo");
 
   createProgressTicks(progressTrack);
 
@@ -818,14 +777,12 @@ function startBlock(blockIndex) {
     width_schedule: widthSchedule,
     canvas,
     ctx,
-    canvas_rect: canvas.getBoundingClientRect(),
     center,
     startPoint,
     block_start_time: performance.now(),
     block_end_time: performance.now() + EXPERIMENT_CONFIG.block_duration_seconds * 1000,
     animation_frame_id: null,
     active_pointer_id: null,
-    last_hud_update_time: -Infinity,
     pen_down: false,
     has_started_movement: false,
     previous_theta: null,
@@ -852,7 +809,6 @@ function startBlock(blockIndex) {
       lastScoreLabel,
       widthLabel,
       message,
-      penHalo,
     },
   };
 
@@ -862,10 +818,11 @@ function startBlock(blockIndex) {
     width_schedule_json: JSON.stringify(widthSchedule),
   });
 
-  canvas.addEventListener("pointerdown", handlePointerDown, { passive: false });
-  window.addEventListener("pointermove", handlePointerMove, { passive: false });
-  window.addEventListener("pointerup", handlePointerUp, { passive: false });
-  window.addEventListener("pointercancel", handlePointerCancel, { passive: false });
+  canvas.addEventListener("pointerdown", handlePointerDown);
+  canvas.addEventListener("pointermove", handlePointerMove);
+  canvas.addEventListener("pointerup", handlePointerUp);
+  canvas.addEventListener("pointercancel", handlePointerCancel);
+  canvas.addEventListener("lostpointercapture", handleLostPointerCapture);
 
   ACTIVE.animation_frame_id = requestAnimationFrame(updateAndDraw);
 }
@@ -895,7 +852,7 @@ function handlePointerDown(event) {
     return;
   }
 
-  const pos = getCanvasPositionFromPointer(event, ACTIVE.canvas, ACTIVE.canvas_rect);
+  const pos = getCanvasPositionFromPointer(event, ACTIVE.canvas);
   const currentChunk = getChunkForElapsed(ACTIVE, now - ACTIVE.block_start_time);
   const geom = evaluateTrackPosition(pos, currentChunk.track_width_px);
 
@@ -910,8 +867,7 @@ function handlePointerDown(event) {
     return;
   }
 
-  // Avoid pointer capture: it caused sticky mouse/trackpad states in debugging
-  // and is unnecessary in the fullscreen iPad task.
+  ACTIVE.canvas.setPointerCapture(event.pointerId);
   ACTIVE.active_pointer_id = event.pointerId;
   ACTIVE.pen_down = true;
   ACTIVE.has_started_movement = true;
@@ -920,7 +876,6 @@ function handlePointerDown(event) {
   ACTIVE.last_position = pos;
   ACTIVE.last_inside_track = geom.inside_track;
   ACTIVE.ui.message.textContent = `Keep moving ${EXPERIMENT_CONFIG.movement_direction}.`;
-  updateVisualCursor(event);
 
   addEvent("pen_down", {
     block_index: ACTIVE.block_index,
@@ -937,19 +892,13 @@ function handlePointerMove(event) {
   if (!ACTIVE || !ACTIVE.pen_down || event.pointerId !== ACTIVE.active_pointer_id) return;
   event.preventDefault();
 
-  const events = (
-    EXPERIMENT_CONFIG.use_coalesced_events &&
-    typeof event.getCoalescedEvents === "function"
-  ) ? event.getCoalescedEvents() : [event];
+  const events = typeof event.getCoalescedEvents === "function"
+    ? event.getCoalescedEvents()
+    : [event];
 
-  const realEvents = events.length > 0 ? events : [event];
-  for (const e of realEvents) {
+  for (const e of events) {
     processPointerSample(e, "pointermove");
   }
-
-  // Update the optional compositor-layer halo immediately from the newest real
-  // sample. No predicted samples are used for display, scoring, or logging.
-  updateVisualCursor(realEvents[realEvents.length - 1]);
 }
 
 function handlePointerUp(event) {
@@ -958,8 +907,6 @@ function handlePointerUp(event) {
   processPointerSample(event, "pointerup");
   ACTIVE.pen_down = false;
   ACTIVE.active_pointer_id = null;
-  hideVisualCursor();
-  hideVisualCursor();
   ACTIVE.previous_theta = null;
   ACTIVE.previous_sample_time = null;
   ACTIVE.n_lifts += 1;
@@ -984,6 +931,16 @@ function handlePointerCancel(event) {
     block_index: ACTIVE.block_index,
     block_elapsed_ms: performance.now() - ACTIVE.block_start_time,
   });
+}
+
+function handleLostPointerCapture(event) {
+  if (!ACTIVE || event.pointerId !== ACTIVE.active_pointer_id) return;
+  ACTIVE.pen_down = false;
+  ACTIVE.active_pointer_id = null;
+  ACTIVE.previous_theta = null;
+  ACTIVE.previous_sample_time = null;
+  ACTIVE.n_lifts += 1;
+  ACTIVE.ui.message.textContent = "Pointer capture lost — place the Pencil back inside the track to continue.";
 }
 
 function evaluateTrackPosition(pos, trackWidthPx) {
@@ -1013,7 +970,7 @@ function processPointerSample(event, eventType) {
     return;
   }
 
-  const pos = getCanvasPositionFromPointer(event, ACTIVE.canvas, ACTIVE.canvas_rect);
+  const pos = getCanvasPositionFromPointer(event, ACTIVE.canvas);
   const chunk = getChunkForElapsed(ACTIVE, blockElapsedMs);
   const geom = evaluateTrackPosition(pos, chunk.track_width_px);
 
@@ -1153,16 +1110,12 @@ function updateAndDraw() {
   }
 
   const progress = clamp(elapsedMs / (EXPERIMENT_CONFIG.block_duration_seconds * 1000), 0, 1);
+  ACTIVE.ui.progressFill.style.width = `${progress * 100}%`;
+  ACTIVE.ui.elapsedLabel.textContent = formatElapsedClock(elapsedMs);
+  ACTIVE.ui.remainingLabel.textContent = formatClock(remainingMs);
+
   const chunk = getChunkForElapsed(ACTIVE, elapsedMs);
-  const hudIntervalMs = 1000 / Math.max(1, EXPERIMENT_CONFIG.update_hud_hz);
-  if (now - ACTIVE.last_hud_update_time >= hudIntervalMs) {
-    ACTIVE.last_hud_update_time = now;
-    ACTIVE.ui.progressFill.style.width = `${progress * 100}%`;
-    ACTIVE.ui.elapsedLabel.textContent = formatElapsedClock(elapsedMs);
-    ACTIVE.ui.remainingLabel.textContent = formatClock(remainingMs);
-    ACTIVE.ui.widthLabel.textContent = `${chunk.track_width_px}px`;
-    updateScoreLabels();
-  }
+  ACTIVE.ui.widthLabel.textContent = `${chunk.track_width_px}px`;
 
   drawTask(chunk, now);
   ACTIVE.animation_frame_id = requestAnimationFrame(updateAndDraw);
@@ -1235,8 +1188,24 @@ function drawTask(chunk, now) {
   // Draw direction indicator near start zone.
   drawDirectionArrow(ctx, ACTIVE.startPoint, EXPERIMENT_CONFIG.movement_direction);
 
-  // No canvas cursor is drawn. The physical Pencil tip is the primary cursor.
-  // An optional DOM halo can be enabled with visual_cursor_mode: "halo".
+  // Draw cursor/dot.
+  if (ACTIVE.last_position) {
+    ctx.save();
+    ctx.fillStyle = ACTIVE.last_inside_track ? EXPERIMENT_CONFIG.cursor_color : EXPERIMENT_CONFIG.cursor_outside_color;
+    ctx.strokeStyle = "rgba(0,0,0,0.55)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(
+      ACTIVE.last_position.x,
+      ACTIVE.last_position.y,
+      EXPERIMENT_CONFIG.cursor_radius_px,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
 }
 
 function drawDirectionArrow(ctx, point, direction) {
@@ -1267,9 +1236,10 @@ function finishActiveBlock() {
   }
 
   finished.canvas.removeEventListener("pointerdown", handlePointerDown);
-  window.removeEventListener("pointermove", handlePointerMove);
-  window.removeEventListener("pointerup", handlePointerUp);
-  window.removeEventListener("pointercancel", handlePointerCancel);
+  finished.canvas.removeEventListener("pointermove", handlePointerMove);
+  finished.canvas.removeEventListener("pointerup", handlePointerUp);
+  finished.canvas.removeEventListener("pointercancel", handlePointerCancel);
+  finished.canvas.removeEventListener("lostpointercapture", handleLostPointerCapture);
 
   const samplesForBlock = DATA.samples.filter((row) => row.block_index === finished.block_index);
   const insideSamples = samplesForBlock.filter((row) => row.inside_track);
@@ -1285,11 +1255,6 @@ function finishActiveBlock() {
     reward_points: finished.block.reward_points,
     block_duration_seconds: EXPERIMENT_CONFIG.block_duration_seconds,
     chunk_duration_seconds: EXPERIMENT_CONFIG.chunk_duration_seconds,
-    input_optimization_version: "physical_tip_coalesced_no_prediction_v1",
-    visual_cursor_mode: EXPERIMENT_CONFIG.visual_cursor_mode,
-    use_coalesced_events: EXPERIMENT_CONFIG.use_coalesced_events,
-    use_predicted_events: EXPERIMENT_CONFIG.use_predicted_events,
-    use_pointerrawupdate: EXPERIMENT_CONFIG.use_pointerrawupdate,
     width_schedule_json: JSON.stringify(finished.width_schedule),
     block_score: finished.block_score,
     total_score_after_block: SESSION.total_score,
