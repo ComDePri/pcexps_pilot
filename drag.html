@@ -266,17 +266,17 @@ const EXPERIMENT_CONFIG = {
   },
 
   // Set this to false to skip calibration and use manual_calibrated_widths_px.
-  use_calibration_phase: true,
+  use_calibration_phase: false,
 
   manual_calibrated_widths_px: {
-    speed_large: 110,
-    balanced_middle: 60,
-    accuracy_small: 36,
+    speed_large: 80,
+    balanced_middle: 32,
+    accuracy_small: 14,
   },
 
   calibration: {
-    candidate_widths_px: [20, 28, 36, 48, 64, 84, 110],
-    prefixed_large_width_px: 110,
+    candidate_widths_px: [10, 14, 18, 24, 32, 48, 64, 80],
+    prefixed_large_width_px: 80,
     chunk_duration_seconds: 12,
     repetitions_per_width: 1,
     randomize_width_order: true,
@@ -299,17 +299,17 @@ const EXPERIMENT_CONFIG = {
   },
 
   switching_task: {
-    reward_values: [1, 5, 10],
+    reward_values: [1, 10],
     block_duration_seconds: 60,
     chunk_duration_seconds: 10,
-    blocks_per_reward: 2,
+    blocks_per_reward: 4,
     randomize_block_order: true,
     balance_target_width_transitions_across_blocks: true,
     strict_chunk_timing: true,
     strict_block_timing: true,
   },
 
-  directions_deg: [0, 45, 90, 135, 180, 225, 270, 315],
+  directions_deg: [90, 270],
   randomize_direction_order_within_block: true,
 
   movement_timeout_ms: 4000,
