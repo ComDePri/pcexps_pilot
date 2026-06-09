@@ -160,9 +160,11 @@
     }
 
     #steering-canvas {
-      width: min(920px, calc(100vw - 32px));
-      height: min(720px, calc(100vh - 160px));
-      max-height: 720px;
+      /* Display size is calculated in JavaScript so width and height always
+         use the same scale factor. This prevents circles becoming ellipses. */
+      display: block;
+      width: auto;
+      height: auto;
       background: white;
       border: 1px solid #cfcfcf;
       border-radius: 18px;
@@ -256,7 +258,7 @@ const EXPERIMENT_CONFIG = {
   canvas_width: 920,
   canvas_height: 720,
   track_radius_px: 235,
-  cursor_radius_px: 1,
+  cursor_radius_px: 8,
   start_zone_radius_px: 28,
 
   // Task structure.
@@ -450,6 +452,39 @@ function getCanvasPositionFromPointer(event, canvas, cachedRect = null) {
     client_x: event.clientX,
     client_y: event.clientY,
   };
+}
+
+function fitCanvasPreservingAspectRatio(canvas) {
+  // Canvas coordinates remain fixed at canvas.width × canvas.height. Only the
+  // CSS display size changes, using one common scale factor for both axes.
+  const viewportWidth = window.visualViewport?.width || window.innerWidth;
+  const viewportHeight = window.visualViewport?.height || window.innerHeight;
+  const panel = document.getElementById("panel");
+  const message = document.getElementById("message");
+
+  const panelHeight = panel ? panel.getBoundingClientRect().height : 0;
+  const messageHeight = message ? message.getBoundingClientRect().height : 0;
+
+  // Includes task-screen padding, the two flex gaps, borders, and a small
+  // safety margin for Safari's changing viewport height.
+  const horizontalReservePx = 32;
+  const verticalReservePx = panelHeight + messageHeight + 64;
+
+  const maxWidth = Math.max(100, viewportWidth - horizontalReservePx);
+  const maxHeight = Math.max(100, viewportHeight - verticalReservePx);
+  const scale = Math.min(
+    1,
+    maxWidth / canvas.width,
+    maxHeight / canvas.height
+  );
+
+  const displayWidth = Math.max(1, Math.floor(canvas.width * scale));
+  const displayHeight = Math.max(1, Math.floor(canvas.height * scale));
+
+  canvas.style.width = `${displayWidth}px`;
+  canvas.style.height = `${displayHeight}px`;
+
+  return canvas.getBoundingClientRect();
 }
 
 function updateVisualCursor(event) {
@@ -812,13 +847,16 @@ function startBlock(blockIndex) {
   };
   const startPoint = pointOnTrack(center, EXPERIMENT_CONFIG.track_radius_px, 0);
 
+  const initialCanvasRect = fitCanvasPreservingAspectRatio(canvas);
+
   ACTIVE = {
     block_index: blockIndex,
     block,
     width_schedule: widthSchedule,
     canvas,
     ctx,
-    canvas_rect: canvas.getBoundingClientRect(),
+    canvas_rect: initialCanvasRect,
+    resize_handler: null,
     center,
     startPoint,
     block_start_time: performance.now(),
@@ -862,10 +900,17 @@ function startBlock(blockIndex) {
     width_schedule_json: JSON.stringify(widthSchedule),
   });
 
+  ACTIVE.resize_handler = () => {
+    if (!ACTIVE || ACTIVE.canvas !== canvas) return;
+    ACTIVE.canvas_rect = fitCanvasPreservingAspectRatio(canvas);
+  };
+
   canvas.addEventListener("pointerdown", handlePointerDown, { passive: false });
   window.addEventListener("pointermove", handlePointerMove, { passive: false });
   window.addEventListener("pointerup", handlePointerUp, { passive: false });
   window.addEventListener("pointercancel", handlePointerCancel, { passive: false });
+  window.addEventListener("resize", ACTIVE.resize_handler);
+  window.visualViewport?.addEventListener("resize", ACTIVE.resize_handler);
 
   ACTIVE.animation_frame_id = requestAnimationFrame(updateAndDraw);
 }
@@ -958,7 +1003,6 @@ function handlePointerUp(event) {
   processPointerSample(event, "pointerup");
   ACTIVE.pen_down = false;
   ACTIVE.active_pointer_id = null;
-  hideVisualCursor();
   hideVisualCursor();
   ACTIVE.previous_theta = null;
   ACTIVE.previous_sample_time = null;
@@ -1270,6 +1314,10 @@ function finishActiveBlock() {
   window.removeEventListener("pointermove", handlePointerMove);
   window.removeEventListener("pointerup", handlePointerUp);
   window.removeEventListener("pointercancel", handlePointerCancel);
+  if (finished.resize_handler) {
+    window.removeEventListener("resize", finished.resize_handler);
+    window.visualViewport?.removeEventListener("resize", finished.resize_handler);
+  }
 
   const samplesForBlock = DATA.samples.filter((row) => row.block_index === finished.block_index);
   const insideSamples = samplesForBlock.filter((row) => row.inside_track);
